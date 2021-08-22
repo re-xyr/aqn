@@ -1,0 +1,92 @@
+name:                aqn
+version:             0.1.0.0
+github:              "re-xyr/aqn"
+license:             GPL-3
+author:              "daylily"
+maintainer:          "xy.r@outlook.com"
+copyright:           "2021 daylily"
+
+extra-source-files:
+- README.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/re-xyr/aqn#readme>
+
+dependencies:
+- base
+- freer-simple
+- lens
+- containers
+- extra
+- prettyprinter
+- strict
+- megaparsec
+- parser-combinators
+- text
+
+library:
+  source-dirs: src
+
+ghc-options:
+- -Wall
+- -Wincomplete-uni-patterns
+- -Wpartial-fields
+- -Wincomplete-record-updates
+- -Widentities
+- -Wredundant-constraints
+
+executables:
+  aqn-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - aqn
+
+tests:
+  aqn-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - aqn
+
+default-extensions:
+- TypeOperators
+- DataKinds
+- FlexibleContexts
+- GADTs
+- Strict
+- LambdaCase
+- TemplateHaskell
+- BlockArguments
+- OverloadedStrings
+- TypeSynonymInstances
+- FlexibleInstances
+- ConstraintKinds
+- RankNTypes
+- TypeApplications
+- ApplicativeDo
+- MultiParamTypeClasses
+- FunctionalDependencies
+- TupleSections
+- DeriveTraversable
+- ScopedTypeVariables
+- ImplicitParams
+- KindSignatures
+- UndecidableInstances
+- OverloadedLists
+- TypeFamilies
+- PostfixOperators
