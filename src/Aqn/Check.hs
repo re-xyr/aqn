@@ -15,6 +15,7 @@ import           Control.Monad.Freer.Error (Error, throwError)
 import           Control.Monad.Freer.Fresh (fresh)
 import           Data.Functor              ((<&>))
 import           Data.Maybe                (fromJust, fromMaybe)
+import           Data.Traversable          (for)
 import           Data.Tsil                 (List ((:>)))
 import qualified Data.Tsil                 as Tsil
 
@@ -92,7 +93,7 @@ infer ctx ex = case ex of
     pure (fromMaybe (error "Not well-scoped variable") (Tsil.lookup ref ctx), TLoc ref)
   XFun ref -> do
     fun <- fromMaybeM (throwError $ ElaborationBlocked ex (DVFun ref)) (readFun ref <&> (^. funCore))
-    args <- mapM (\(l, n, _, _) -> (l, ) <$> freshLocal n) (fun ^. funParams)
+    args <- for (fun ^. funParams) \(l, n, _, _) -> (l, ) <$> freshLocal n
     let call = wrapLambda args $ TFun ref (fmap TLoc <$> args)
     pure (fun ^. funTy, call)
   XHole -> do

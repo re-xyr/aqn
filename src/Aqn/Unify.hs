@@ -18,6 +18,7 @@ import           Data.Function             ((&))
 import           Data.Map.Strict           (Map)
 import qualified Data.Map.Strict           as Map
 import qualified Data.Set                  as Set
+import           Data.Traversable          (for)
 import           Data.Tsil                 (List (Empty, (:>)))
 import qualified Data.Tsil                 as Tsil
 import qualified Debug.Trace               as Debug
@@ -87,10 +88,10 @@ solveMeta ref els sln = do
   args <- ensure NoPatternCondition $ allApps els
   refs <- ensure NoPatternCondition $ allVars args
   ensure NoPatternCondition $ allDistinct Set.empty refs
-  pars <- mapM (\(l, r) -> do
+  pars <- for refs (\(l, r) -> do
     loc <- readLocal r
     fr <- freshLocal (loc ^. localName)
-    pure (l, fr)) refs
+    pure (l, fr))
   let cor = Map.fromList $ toList $ Tsil.zip (snd <$> refs) (snd <$> pars)
   slnT <- wellScoped ref cor sln
   let body = wrapLambda pars slnT
@@ -135,7 +136,7 @@ wellScoped self refs vl' = do
           then throwError CantOccursCheck
           else pure $ TMeta mv
         HFun f args ->
-          TFun f . Tsil.toSeq <$> mapM (mapM (wellScoped self refs)) args
+          TFun f . Tsil.toSeq <$> traverse (traverse (wellScoped self refs)) args
       foldlM (wellScopedElim self refs) hd' els'
     VU -> pure TU
 

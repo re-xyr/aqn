@@ -22,7 +22,6 @@ type EvalM = (Retrieve, Reading 'Metas, Reading 'Funs)
 eval :: EvalM => Term -> Val
 eval = eval' []
 
--- read *
 eval' :: EvalM => Env -> Term -> Val
 eval' env tm = case tm of
   TLam l n x m  -> VLam l n (closure env x m)
@@ -78,7 +77,7 @@ quoteHd :: (QuoteM m, ?unf :: Unfold) => Head -> Eff m Term
 quoteHd hd = case hd of
   HLoc ref      -> pure $ TLoc ref
   HMeta ref     -> pure $ TMeta ref
-  HFun ref args -> TFun ref . Seq.fromList . toList <$> mapM (mapM quote) args
+  HFun ref args -> TFun ref . Seq.fromList . toList <$> traverse (traverse quote) args
 
 quoteElims :: (QuoteM m, ?unf :: Unfold, Foldable f) => Term -> f Elim -> Eff m Term
 quoteElims = foldlM quoteElim
