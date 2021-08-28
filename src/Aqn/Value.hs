@@ -2,10 +2,11 @@ module Aqn.Value where
 
 import           Aqn.Common
 import           Aqn.Ref
-import           Data.Tsil  (List ((:>)))
+import           Data.Foldable (Foldable (foldl'))
+import           Data.Tsil     (List ((:>)))
 
 data Val
-  = VPi Licit Name ~Val (Val -> Val)
+  = VPi Licit Name Val (Val -> Val)
   | VLam Licit Name (Val -> Val)
   | VNeu Head (List Elim) (Maybe Val)
   | VU
@@ -16,39 +17,47 @@ data Head
   | HFun FunVar (List (Licit, Val))
 
 data Elim
-  = EApp Licit ~Val
+  = EApp Licit Val
 
 data Tele
-  = Cons Licit Name ~Val (Val -> Tele)
-  | Nil ~Val
+  = Cons Licit Name Val (Val -> Tele)
+  | Nil Val
 
 neu0 :: Head -> Maybe Val -> Val
 neu0 hd = VNeu hd []
+{-# INLINE neu0 #-}
 
 neuLoc :: Local -> Val
 neuLoc ref = neu0 (HLoc ref) Nothing
+{-# INLINE neuLoc #-}
 
 vApply :: Licit -> Val -> Val -> Val
-vApply l f ~x = case f of
+vApply l f x = case f of
   VLam l' _ clos
     | l == l'   -> clos x
     | otherwise -> error "Applying the wrong licit"
   VNeu hd elims val -> VNeu hd (elims :> EApp l x) (flip (vApply l) x <$> val)
   _ -> error "Applying the wrong thing"
+{-# INLINE vApply #-}
 
 vApplyI, vApplyE :: Val -> Val -> Val
 vApplyI = vApply Implicit
+{-# INLINE vApplyI #-}
 vApplyE = vApply Explicit
+{-# INLINE vApplyE #-}
 
 vApplyArgs :: Foldable f => Val -> f (Licit, Val) -> Val
-vApplyArgs = foldl (\v' (l, x) -> vApply l v' x)
+vApplyArgs = foldl' (\v' (l, x) -> vApply l v' x)
+{-# INLINE vApplyArgs #-}
 
 vApplyElims :: Foldable f => Val -> f Elim -> Val
-vApplyElims = foldl vApplyElim
+vApplyElims = foldl' vApplyElim
+{-# INLINE vApplyElims #-}
 
 vApplyElim :: Val -> Elim -> Val
 vApplyElim x el = case el of
   EApp licit arg -> vApply licit x arg
+{-# INLINE vApplyElim #-}
 
 teleToTy :: Tele -> Val
 teleToTy (Nil ret)          = ret

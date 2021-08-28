@@ -16,12 +16,15 @@ data Store r a where
 
 newStore :: Member (Store r) m => a -> Eff m (r a)
 newStore x = send (NewStore x)
+{-# INLINE newStore #-}
 
 writeStore :: Member (Store r) m => r a -> a -> Eff m ()
 writeStore r x = send (WriteStore r x)
+{-# INLINE writeStore #-}
 
 readStore :: Member (Store r) m => r a -> Eff m a
 readStore r = send (ReadStore r)
+{-# INLINE readStore #-}
 
 type Store' = Store IORef
 

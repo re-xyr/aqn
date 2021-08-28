@@ -29,9 +29,13 @@ dependencies:
 - megaparsec
 - parser-combinators
 - text
+- time
+- reflection
 
 library:
   source-dirs: src
+  ghc-options:
+  - -fprof-auto-exported
 
 ghc-options:
 - -Wall
@@ -46,6 +50,7 @@ executables:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
+    - -fprof-auto-top
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
@@ -84,7 +89,6 @@ default-extensions:
 - TupleSections
 - DeriveTraversable
 - ScopedTypeVariables
-- ImplicitParams
 - KindSignatures
 - UndecidableInstances
 - OverloadedLists

@@ -12,7 +12,6 @@ import           Control.Monad             (unless)
 import           Control.Monad.Extra       (fromMaybeM)
 import           Control.Monad.Freer       (Eff, Member)
 import           Control.Monad.Freer.Error (Error, catchError, runError, throwError)
-import           Control.Monad.Zip         (MonadZip (mzip))
 import           Data.Foldable             (Foldable (toList), foldlM)
 import           Data.Function             ((&))
 import           Data.Map.Strict           (Map)
@@ -45,12 +44,12 @@ unifyShallow l r = do
   case (l, r) of
     -- Approximate
     (VNeu (HLoc ref) els _, VNeu (HLoc ref') els' _) | ref == ref' ->
-      unifySpine els els'
+      unifyMany unifyElim els els'
     (VNeu (HMeta ref) els _, VNeu (HMeta ref') els' _) | ref == ref' ->
-      unifySpine els els'
+      unifyMany unifyElim els els'
     (VNeu (HFun ref args) els _, VNeu (HFun ref' args') els' _) | ref == ref' -> do
-      unifyArgs args args'
-      unifySpine els els'
+      unifyMany unifyArg args args'
+      unifyMany unifyElim els els'
     _ -> throwError CantUnifyApprox
 
 unifyDeep :: (UnifyM m, UnifyE m) => Val -> Val -> Eff m ()
@@ -143,23 +142,27 @@ wellScoped self refs vl' = do
 wellScopedElim :: (SolveM m, UnifyE m) => MetaVar -> Map Local Local -> Term -> Elim -> Eff m Term
 wellScopedElim self refs tm el = case el of
   EApp li val -> TApp li tm <$> wellScoped self refs val
+{-# INLINE wellScopedElim #-}
 
-unifyArgs :: (UnifyM m, UnifyE m, Foldable f, MonadZip f) => f (Licit, Val) -> f (Licit, Val) -> Eff m ()
-unifyArgs l r
-  | length l /= length r = throwError DifferentSpineLength
-  | otherwise = sequence_ $ uncurry unifyArg <$> mzip l r
+unifyMany :: (UnifyM m, UnifyE m) => (a -> a -> Eff m ()) -> List a -> List a -> Eff m ()
+unifyMany _ Tsil.Empty Tsil.Empty = pure ()
+unifyMany f (xs :> x) (ys :> y) = do
+  unifyMany f xs ys
+  f x y
+unifyMany _ _ _ = throwError DifferentSpineLength
 
 unifyArg :: (UnifyM m, UnifyE m) => (Licit, Val) -> (Licit, Val) -> Eff m ()
 unifyArg (licit, arg) (licit', arg') = do
   unless (licit == licit') $ throwError CantUnifyLicit
   unify' arg arg'
+{-# INLINE unifyArg #-}
 
-unifySpine :: (UnifyM m, UnifyE m, Foldable f, MonadZip f) => f Elim -> f Elim -> Eff m ()
-unifySpine l r
-  | length l /= length r = throwError DifferentSpineLength
-  | otherwise = sequence_ $ uncurry unifyElim <$> mzip l r
+-- unifySpine :: (UnifyM m, UnifyE m, Foldable f, MonadZip f) => f Elim -> f Elim -> Eff m ()
+-- unifySpine l r = traverse_ (uncurry unifyElim) (mzip l r)
+-- {-# INLINE unifySpine #-}
 
 unifyElim :: (UnifyM m, UnifyE m) => Elim -> Elim -> Eff m ()
 unifyElim l r = case (l, r) of
   (EApp licit arg, EApp licit' arg') ->
     unifyArg (licit, arg) (licit', arg')
+{-# INLINE unifyElim #-}

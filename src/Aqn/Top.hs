@@ -13,6 +13,7 @@ import           Control.Monad.Freer.Reader (Reader, ask)
 import           Data.Function              ((&))
 import           Data.IORef                 (IORef)
 import           Data.IntMap.Strict         (IntMap)
+import           Data.Reflection            (Given (given), give)
 import           Data.Sequence              (Seq)
 import qualified Data.Text                  as T
 import           Data.Tsil                  (List)
@@ -64,7 +65,7 @@ data Global = Global
 makeLenses ''Global
 
 type Write m = Members '[Reader (IORef Global), Store', Fresh] m
-type Retrieve = ?global :: Global
+type Retrieve = Given Global
 
 readGlobal :: Write m => Eff m Global
 readGlobal = ask @(IORef Global) >>= readStore
@@ -77,13 +78,15 @@ writeGlobal x = do
 lift :: Write m => (Retrieve => a) -> Eff m a
 lift f = do
   global <- readGlobal
-  pure $ let ?global = global in f
+  pure $ give global f
 
 getMeta :: (Retrieve, Reading 'Metas) => MetaVar -> Meta
-getMeta (MetaVar r) = ?global ^?! (metas . ix r)
+getMeta (MetaVar r) = given ^?! (metas . ix r)
+{-# INLINE getMeta #-}
 
 readMeta :: (Write m, Reading 'Metas) => MetaVar -> Eff m Meta
 readMeta r = lift (getMeta r)
+-- {-# INLINE readMeta #-}
 
 -- Do not apply eval/quote etc directly on this via fmap
 -- because that will use the OLD global environmet before the update
@@ -91,28 +94,35 @@ writeMeta :: (Write m, Writing 'Metas) => MetaVar -> Meta -> Eff m ()
 writeMeta (MetaVar r) x = do
   global <- readGlobal
   writeGlobal $ global & (metas . at r) ?~ x
+-- {-# INLINE writeMeta #-}
 
 getFun :: (Retrieve, Reading 'Funs) => FunVar -> Fun
-getFun (FunVar r) = ?global ^?! (funs . ix r)
+getFun (FunVar r) = given ^?! (funs . ix r)
+{-# INLINE getFun #-}
 
 readFun :: (Write m, Reading 'Funs) => FunVar -> Eff m Fun
 readFun r = lift (getFun r)
+-- {-# INLINE readFun #-}
 
 writeFun :: (Write m, Writing 'Funs) => FunVar -> Fun -> Eff m ()
 writeFun (FunVar r) x = do
   global <- readGlobal
   writeGlobal $ global & (funs . at r) ?~ x
+-- {-# INLINE writeFun #-}
 
 updateFun :: (Write m, Writing 'Funs) => FunVar -> (Fun -> Fun) -> Eff m ()
 updateFun r f = do
   fn <- readFun r
   writeFun r (f fn)
+-- {-# INLINE updateFun #-}
 
 getLocal :: (Retrieve, Reading 'Locals) => Local -> LocalInfo
-getLocal (Local r) = ?global ^?! (locals . ix r)
+getLocal (Local r) = given ^?! (locals . ix r)
+{-# INLINE getLocal #-}
 
 readLocal :: (Write m, Reading 'Locals) => Local -> Eff m LocalInfo
 readLocal r = lift (getLocal r)
+-- {-# INLINE readLocal #-}
 
 freshLocal :: (Write m, Writing 'Locals, Member Fresh m) => Name -> Eff m Local
 freshLocal n = do

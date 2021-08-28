@@ -38,12 +38,14 @@ unNamedLicit x = case x of
   ImplicitA   -> Implicit
   ImplicitN _ -> Implicit
   ExplicitA   -> Explicit
+{-# INLINE unNamedLicit #-}
 
 matchNamedLicit :: NamedLicit -> Licit -> Name -> Bool
 matchNamedLicit nl l n = case nl of
   ImplicitA   -> l == Implicit
   ImplicitN s -> l == Implicit && s == n
   ExplicitA   -> l == Explicit
+{-# INLINE matchNamedLicit #-}
 
 type Preprogram = [Predecl]
 

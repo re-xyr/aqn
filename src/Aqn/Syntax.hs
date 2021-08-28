@@ -3,6 +3,7 @@ module Aqn.Syntax where
 import           Aqn.Common
 import           Aqn.Presyntax
 import           Aqn.Ref
+import           Data.Foldable (Foldable (foldl', foldr'))
 import           Data.Sequence (Seq)
 
 data Term
@@ -17,10 +18,12 @@ data Term
   deriving (Show)
 
 tApplyMany :: Foldable f => Term -> f (Licit, Term) -> Term
-tApplyMany = foldl (\f (l, x) -> TApp l f x)
+tApplyMany = foldl' (\f (l, x) -> TApp l f x)
+{-# INLINE tApplyMany #-}
 
 wrapLambda :: Foldable f => f (Licit, Local) -> Term -> Term
-wrapLambda params tm = foldr (\(l, r) t -> TLam l "_" r t) tm params
+wrapLambda params tm = foldr' (\(l, r) t -> TLam l "_" r t) tm params
+{-# INLINE wrapLambda #-}
 
 data CheckError
   = CantUnify UnifyError Expr Term Term

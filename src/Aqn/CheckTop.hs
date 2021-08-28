@@ -45,6 +45,7 @@ checkTop m = case m of
 
 fakeFunHead :: FunVar -> Seq (Licit, Name, Local) -> Decl
 fakeFunHead fv pars = DFunHead fv (fmap (\(l, n, r) -> (l, n, r, XHole)) pars) XHole
+{-# INLINE fakeFunHead #-}
 
 checkParams :: TopM m => Ctx -> Seq (Licit, Name, Local, Expr) -> Expr -> Eff m (Seq (Licit, Name, Local, Term), Term)
 checkParams ctx Seq.Empty ret = do
