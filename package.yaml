@@ -1,7 +1,7 @@
 name:                aqn
 version:             0.1.0.0
 github:              "re-xyr/aqn"
-license:             GPL-3
+license:             BSD3
 author:              "daylily"
 maintainer:          "xy.r@outlook.com"
 copyright:           "2021 daylily"
