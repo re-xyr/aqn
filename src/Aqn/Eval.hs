@@ -5,7 +5,7 @@ import           Aqn.Ref
 import           Aqn.Syntax
 import           Aqn.Top
 import           Aqn.Value
-import           Control.Lens        (_2, _Just, previews)
+import           Control.Lens        (_2, _Just, previews, (^.))
 import           Control.Monad.Freer (Eff)
 import           Data.Foldable       (Foldable (toList), foldlM)
 import           Data.Function       ((&))
@@ -31,9 +31,7 @@ eval' env tm = case tm of
   TLoc r        -> fromMaybe (neuLoc r) (Tsil.lookup r env)
   TFun f xs     -> evalCall env f (Tsil.toList xs)
   TLet r x y    -> eval' (env :> (r, eval' env x)) y
-  TMeta r ->
-    let (Meta (MetaCore body)) = getMeta r
-    in neu0 (HMeta r) (snd <$> body)
+  TMeta r       -> neu0 (HMeta r) (snd <$> (getMeta r ^. metaCore . metaBody))
 
 evalCall :: EvalM => Env -> FunVar -> List (Licit, Term) -> Val
 evalCall env r args =

@@ -7,7 +7,7 @@ import           Data.Tsil  (List ((:>)))
 data Val
   = VPi Licit Name ~Val (Val -> Val)
   | VLam Licit Name (Val -> Val)
-  | VNeu Head (List Elim) ~(Maybe Val)
+  | VNeu Head (List Elim) (Maybe Val)
   | VU
 
 data Head
@@ -19,8 +19,8 @@ data Elim
   = EApp Licit ~Val
 
 data Tele
-  = Cons Licit Name Val (Val -> Tele)
-  | Nil Val
+  = Cons Licit Name ~Val (Val -> Tele)
+  | Nil ~Val
 
 neu0 :: Head -> Maybe Val -> Val
 neu0 hd = VNeu hd []
@@ -48,7 +48,7 @@ vApplyElims = foldl vApplyElim
 
 vApplyElim :: Val -> Elim -> Val
 vApplyElim x el = case el of
-  EApp licit ~arg -> vApply licit x arg
+  EApp licit arg -> vApply licit x arg
 
 teleToTy :: Tele -> Val
 teleToTy (Nil ret)          = ret

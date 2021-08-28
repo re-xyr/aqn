@@ -44,11 +44,11 @@ unifyShallow l r = do
   -- Debug.trace ("checking " ++ show tl ++ " and " ++ show tr) $ pure ()
   case (l, r) of
     -- Approximate
-    (VNeu (HLoc ref) els ~_, VNeu (HLoc ref') els' ~_) | ref == ref' ->
+    (VNeu (HLoc ref) els _, VNeu (HLoc ref') els' _) | ref == ref' ->
       unifySpine els els'
-    (VNeu (HMeta ref) els ~_, VNeu (HMeta ref') els' ~_) | ref == ref' ->
+    (VNeu (HMeta ref) els _, VNeu (HMeta ref') els' _) | ref == ref' ->
       unifySpine els els'
-    (VNeu (HFun ref args) els ~_, VNeu (HFun ref' args') els' ~_) | ref == ref' -> do
+    (VNeu (HFun ref args) els _, VNeu (HFun ref' args') els' _) | ref == ref' -> do
       unifyArgs args args'
       unifySpine els els'
     _ -> throwError CantUnifyApprox

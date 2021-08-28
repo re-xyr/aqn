@@ -1,5 +1,3 @@
-{-# LANGUAGE NoStrict     #-}
-{-# LANGUAGE NoStrictData #-}
 -- This module is originally written by Olle Fredrickson (https://github.com/ollef).
 -- Original source is https://github.com/ollef/sixty/blob/main/src/Data/Tsil.hs under BSD-3 License.
 module Data.Tsil where
@@ -17,7 +15,7 @@ import           GHC.Exts            (IsList (Item, fromList, toList))
 -- It is strict in its length, but lazy in elements.
 data List a
   = Empty
-  | !(List a) :> a
+  | List a :> ~a
   deriving (Eq, Functor, Ord, Traversable)
 
 instance Show a => Show (List a) where

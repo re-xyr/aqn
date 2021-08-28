@@ -41,37 +41,37 @@ check ctx ex ty' = do
       bodyT <- check (ctx :> (ref, vTyV)) body ty
       pure $ TLet ref vT bodyT
     _ -> do
-      (tyIn, tm) <- fromJust <$> (infer ctx ex >>= uncurry (insert ExplicitA ctx))
+      (tm, tyIn) <- fromJust <$> (infer ctx ex >>= uncurry (insert ExplicitA ctx))
       unify ty tyIn >>= \case
         Nothing -> pure tm
         Just reason -> do
           err <- CantUnify reason ex <$> quoteE tyIn <*> quoteE ty
           throwError err
 
-infer :: CheckM m => Ctx -> Expr -> Eff m (Val, Term)
+infer :: CheckM m => Ctx -> Expr -> Eff m (Term, Val)
 infer ctx ex = case ex of
   XTy x ty -> do
     tyT <- check ctx ty VU
     tyV <- lift $ eval tyT
     xt <- check ctx x tyV
-    pure (tyV, xt)
+    pure (xt, tyV)
   XPi licit n par dom cod -> do
     dom' <- check ctx dom VU
     domV' <- lift $ eval dom'
     cod' <- check (ctx :> (par, domV')) cod VU
-    pure (VU, TPi licit n par dom' cod')
-  XU -> pure (VU, TU)
+    pure (TPi licit n par dom' cod', VU)
+  XU -> pure (TU, VU)
   XApp licit f x -> do
-    (oTy, oF) <- infer ctx f
-    insert licit ctx oTy oF >>= \case
-      Just (ty', f') -> do
+    (oF, oTy) <- infer ctx f
+    insert licit ctx oF oTy >>= \case
+      Just (f', ty') -> do
         ty <- lift $ force ty'
         case ty of
           VPi _ _ dom cod -> do
             x' <- check ctx x dom
             x'E <- lift $ eval x'
             appd <- lift $ TApp (unNamedLicit licit) f' x'
-            pure (cod x'E, appd)
+            pure (appd, cod x'E)
           _ -> do
             oTyT <- quoteE oTy
             throwError $ FunctionMismatch ex licit oTyT
@@ -82,25 +82,25 @@ infer ctx ex = case ex of
     (dom, clos) <- freshDomCod ctx n
     let ty = VPi licit n dom clos
     tm <- check ctx ex ty
-    pure (ty, tm)
+    pure (tm, ty)
   XLet ref vTy v body -> do
     vTyT <- check ctx vTy VU
     vTyV <- lift $ eval vTyT
     vT <- check ctx v vTyV
-    (bodyTyV, bodyT) <- infer (ctx :> (ref, vTyV)) body
-    pure (bodyTyV, TLet ref vT bodyT)
+    (bodyT, bodyTyV) <- infer (ctx :> (ref, vTyV)) body
+    pure (TLet ref vT bodyT, bodyTyV)
   XLoc ref ->
-    pure (fromMaybe (error "Not well-scoped variable") (Tsil.lookup ref ctx), TLoc ref)
+    pure (TLoc ref, fromMaybe (error "Not well-scoped variable") (Tsil.lookup ref ctx))
   XFun ref -> do
     fun <- fromMaybeM (throwError $ ElaborationBlocked ex (DVFun ref)) (readFun ref <&> (^. funCore))
     args <- for (fun ^. funParams) \(l, n, _, _) -> (l, ) <$> freshLocal n
     let call = wrapLambda args $ TFun ref (fmap TLoc <$> args)
-    pure (fun ^. funTy, call)
+    pure (call, fun ^. funTy)
   XHole -> do
     tyMeta <- freshMeta ctx VU
     ty <- lift $ eval tyMeta
     tm <- freshMeta ctx ty
-    pure (ty, tm)
+    pure (tm, ty)
 
 freshDomCod :: CheckM m => Ctx -> Name -> Eff m (Val, Val -> Val)
 freshDomCod ctx n = do
@@ -117,19 +117,19 @@ freshMeta ctx _ty = do
   writeMeta metavar (Meta (MetaCore Nothing))
   pure $ TMeta metavar `tApplyMany` fmap (\(r, _) -> (Implicit, TLoc r)) ctx
 
-insert :: (Write m, Writing 'Metas, Reading 'Funs, Reading 'Locals) => NamedLicit -> Ctx -> Val -> Term -> Eff m (Maybe (Val, Term))
-insert licit ctx ty' tm = do
+insert :: (Write m, Writing 'Metas, Reading 'Funs, Reading 'Locals) => NamedLicit -> Ctx -> Term -> Val -> Eff m (Maybe (Term, Val))
+insert licit ctx tm ty' = do
   ty <- lift $ force ty'
   case ty of
     VPi licit' n dom cod
-      | matchNamedLicit licit licit' n -> pure $ Just (ty, tm)
+      | matchNamedLicit licit licit' n -> pure $ Just (tm, ty)
       | licit' == Implicit -> do
         meta <- freshMeta ctx dom
         metaV <- lift (eval meta)
-        appd <- lift $ TApp Implicit tm meta
-        insert licit ctx (cod metaV) appd
+        let appd = TApp Implicit tm meta
+        insert licit ctx appd (cod metaV)
       | otherwise -> pure Nothing
-    _ -> pure $ Just (ty, tm)
+    _ -> pure $ Just (tm, ty)
 
 -- infer :: CheckM m => Ctx -> Expr -> Eff m (Val, Term)
 -- infer ctx ex = do
