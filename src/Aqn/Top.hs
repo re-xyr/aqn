@@ -26,7 +26,7 @@ data TopState
   deriving (Show, Eq)
 
 newtype MetaCore = MetaCore
-  { _metaBody    :: Maybe (Term, Val)
+  { _metaBody    :: Maybe (Pr Term Val)
   }
 makeLenses ''MetaCore
 
@@ -36,11 +36,11 @@ newtype Meta = Meta
 makeLenses ''Meta
 
 data FunCore = FunCore
-  { _funParams  :: Seq (Licit, Name, Local, Term)
+  { _funParams  :: Seq (Par Term)
   , _funRetType :: Term
   , _funTele    :: Tele
   , _funTy      :: Val
-  , _funBody    :: Maybe (Term, List Val -> Val)
+  , _funBody    :: Maybe (Pr Term (List Val -> Val))
   }
 makeLenses ''FunCore
 

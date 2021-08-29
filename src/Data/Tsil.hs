@@ -15,7 +15,7 @@ import           GHC.Exts            (IsList (Item, fromList, toList))
 -- It is strict in its length, but lazy in elements.
 data List a
   = Empty
-  | List a :> ~a
+  | List a :> a
   deriving (Eq, Functor, Ord, Traversable)
 
 instance Show a => Show (List a) where

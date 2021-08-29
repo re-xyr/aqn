@@ -34,25 +34,25 @@ checkTop m = case m of
     (ctx, ret) <- teleToCtx [] (fun ^. funParams) (fun ^. funTele) params
     bodyT <- check ctx body ret
     bodyV <- lift $ evalFunBody [] params bodyT
-    updateFun fv \x -> x & funCore ?~ (fun & funBody ?~ (bodyT, bodyV))
+    updateFun fv \x -> x & funCore ?~ (fun & funBody ?~ (bodyT ::: bodyV))
   where
-    teleToCtx :: TopM m => Ctx -> Seq (Licit, Name, Local, Term) -> Tele -> Seq (Licit, Name, Local) -> Eff m (Ctx, Val)
+    teleToCtx :: TopM m => Ctx -> Seq (Par Term) -> Tele -> Seq Bind -> Eff m (Ctx, Val)
     teleToCtx ctx _ (Nil ret) [] = pure (ctx, ret)
-    teleToCtx ctx pars (Cons l _ dom cod) ((l', _, r) :<| xs)
+    teleToCtx ctx pars (Cons l _ dom cod) ((Tp l' _ r) :<| xs)
       | l /= l' = throwError $ IncorrectParamList m pars
       | otherwise = teleToCtx (ctx :> (r, dom)) pars (cod $ neuLoc r) xs
     teleToCtx _ pars _ _ = throwError $ IncorrectParamList m pars
 
-fakeFunHead :: FunVar -> Seq (Licit, Name, Local) -> Decl
-fakeFunHead fv pars = DFunHead fv (fmap (\(l, n, r) -> (l, n, r, XHole)) pars) XHole
+fakeFunHead :: FunVar -> Seq Bind -> Decl
+fakeFunHead fv pars = DFunHead fv (fmap (::: XHole) pars) XHole
 {-# INLINE fakeFunHead #-}
 
-checkParams :: TopM m => Ctx -> Seq (Licit, Name, Local, Expr) -> Expr -> Eff m (Seq (Licit, Name, Local, Term), Term)
+checkParams :: TopM m => Ctx -> Seq (Par Expr) -> Expr -> Eff m (Seq (Par Term), Term)
 checkParams ctx Seq.Empty ret = do
   retT <- check ctx ret VU
   pure ([], retT)
-checkParams ctx ((l, n, r, ty) :<| xs) ret = do
+checkParams ctx (b@(Tp _ _ r) ::: ty :<| xs) ret = do
   tyT <- check ctx ty VU
   tyV <- lift $ eval tyT
   (rest, retT) <- checkParams (ctx :> (r, tyV)) xs ret
-  pure ((l, n, r, tyT) <| rest, retT)
+  pure (b ::: tyT <| rest, retT)

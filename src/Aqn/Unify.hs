@@ -87,29 +87,29 @@ solveMeta ref els sln = do
   args <- ensure NoPatternCondition $ allApps els
   refs <- ensure NoPatternCondition $ allVars args
   ensure NoPatternCondition $ allDistinct Set.empty refs
-  pars <- for refs (\(l, r) -> do
+  pars <- for refs (\(l ::: r) -> do
     loc <- readLocal r
     fr <- freshLocal (loc ^. localName)
-    pure (l, fr))
-  let cor = Map.fromList $ toList $ Tsil.zip (snd <$> refs) (snd <$> pars)
+    pure (l ::: fr))
+  let cor = Map.fromList $ toList $ Tsil.zip (p2 <$> refs) (p2 <$> pars)
   slnT <- wellScoped ref cor sln
   let body = wrapLambda pars slnT
   bodyV <- lift $ eval body
   bodyStr <- lift $ prettyTerm body
   Debug.trace ("Wrote meta " ++ show ref ++ ": " ++ show bodyStr) $
-    writeMeta ref (meta & (metaCore . metaBody) ?~ (body, bodyV))
+    writeMeta ref (meta & (metaCore . metaBody) ?~ (body ::: bodyV))
   where
     ensure e = fromMaybeM (throwError e) . pure
     allApps Empty = Just []
     allApps (xs :> x) = case x of
-      EApp l a -> (:> (l, a)) <$> allApps xs
+      EApp l a -> (:> (l ::: a)) <$> allApps xs
       -- _        -> Nothing -- Note here! In the future you need to put this back.
     allVars Empty = Just []
-    allVars (xs :> (l, x)) = case x of
-      VNeu (HLoc r) [] _ -> (:> (l, r)) <$> allVars xs
+    allVars (xs :> (l ::: x)) = case x of
+      VNeu (HLoc r) [] _ -> (:> (l ::: r)) <$> allVars xs
       _                  -> Nothing
     allDistinct set Empty = Just set
-    allDistinct set (xs :> (_, x))
+    allDistinct set (xs :> (_ ::: x))
       | x `elem` set = Nothing
       | otherwise = allDistinct (Set.insert x set) xs
 
@@ -151,8 +151,8 @@ unifyMany f (xs :> x) (ys :> y) = do
   f x y
 unifyMany _ _ _ = throwError DifferentSpineLength
 
-unifyArg :: (UnifyM m, UnifyE m) => (Licit, Val) -> (Licit, Val) -> Eff m ()
-unifyArg (licit, arg) (licit', arg') = do
+unifyArg :: (UnifyM m, UnifyE m) => Arg Val -> Arg Val -> Eff m ()
+unifyArg (licit ::: arg) (licit' ::: arg') = do
   unless (licit == licit') $ throwError CantUnifyLicit
   unify' arg arg'
 {-# INLINE unifyArg #-}
@@ -164,5 +164,5 @@ unifyArg (licit, arg) (licit', arg') = do
 unifyElim :: (UnifyM m, UnifyE m) => Elim -> Elim -> Eff m ()
 unifyElim l r = case (l, r) of
   (EApp licit arg, EApp licit' arg') ->
-    unifyArg (licit, arg) (licit', arg')
+    unifyArg (licit ::: arg) (licit' ::: arg')
 {-# INLINE unifyElim #-}

@@ -78,7 +78,7 @@ prettyTerm tm = case tm of
   TLoc lo -> prettyLocal lo
   TMeta (MetaVar mv) -> "?" <> pretty mv
   TFun fv args ->
-    prettyFunVar fv <> brackets (hsep (punctuate "," (toList $ uncurry prettyLicit . fmap prettyTerm <$> args)))
+    prettyFunVar fv <> brackets (hsep (punctuate "," (toList $ uncurry' prettyLicit . fmap prettyTerm <$> args)))
 
 enwrapLhsTerm :: PpM => Term -> Doc ann
 enwrapLhsTerm tm = case tm of
@@ -111,11 +111,11 @@ prettyDecl d = case d of
   DFunBody fv pars body -> do
     "fun" <+> prettyFunVar fv <+> prettyPars pars <+> "=" <+> prettyExpr body
 
-prettyTele :: (PpM, Functor f, Foldable f) => (PpM => a -> Doc ann) -> f (Licit, Name, Local, a) -> Doc ann
-prettyTele pty = hsep . toList . fmap (\(l, _, r, x) -> prettyLicit' l (prettyLocal r <+> ":" <+> pty x))
+prettyTele :: (PpM, Functor f, Foldable f) => (PpM => a -> Doc ann) -> f (Par a) -> Doc ann
+prettyTele pty = hsep . toList . fmap (\(Tp l _ r ::: x) -> prettyLicit' l (prettyLocal r <+> ":" <+> pty x))
 
-prettyPars :: (PpM, Functor f, Foldable f) => f (Licit, Name, Local) -> Doc ann
-prettyPars = hsep . toList . fmap (\(l, _, r) -> prettyLicit l (prettyLocal r))
+prettyPars :: (PpM, Functor f, Foldable f) => f Bind -> Doc ann
+prettyPars = hsep . toList . fmap (\(Tp l _ r) -> prettyLicit l (prettyLocal r))
 
 prettyUnifyError :: UnifyError -> Doc ann
 prettyUnifyError e = case e of

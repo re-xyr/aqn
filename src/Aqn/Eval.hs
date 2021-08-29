@@ -33,13 +33,13 @@ eval' env tm = case tm of
   TLoc r        -> fromMaybe (neuLoc r) (Tsil.lookup r env)
   TFun f xs     -> evalCall env f (Tsil.toList xs)
   TLet r x y    -> eval' (env :> (r, eval' env x)) y
-  TMeta r       -> neu0 (HMeta r) (snd <$> (getMeta r ^. metaCore . metaBody))
+  TMeta r       -> neu0 (HMeta r) (p2 <$> (getMeta r ^. metaCore . metaBody))
 
-evalCall :: EvalM => Env -> FunVar -> List (Licit, Term) -> Val
+evalCall :: EvalM => Env -> FunVar -> List (Arg Term) -> Val
 evalCall env r args =
   let args' = fmap (eval' env <$>) args
   in neu0 (HFun r args') $
-    getFun r & previews (funCore . _Just . funBody . _Just . _2) ($ snd <$> args')
+    getFun r & previews (funCore . _Just . funBody . _Just . _2) ($ p2 <$> args')
 {-# INLINE evalCall #-}
 
 closure :: EvalM => Env -> Local -> Term -> (Val -> Val)
@@ -70,11 +70,9 @@ quote val = case val of
   VNeu hd els pre
     | given == Unfold, Nothing <- pre -> do
       fd <- lift $ forceMaybe val
-      maybe enfolded quote fd
+      maybe (quoteHd hd >>= flip quoteElims els) quote fd
     | given == Unfold, Just x <- pre -> quote x
-    | otherwise -> enfolded
-    where
-      enfolded = quoteHd hd >>= flip quoteElims els
+    | otherwise -> quoteHd hd >>= flip quoteElims els
   VU -> pure TU
 
 quoteHd :: (QuoteM m, Given Unfold) => Head -> Eff m Term
@@ -103,17 +101,17 @@ forceMaybe val = case val of
   VNeu (HMeta ref) elims Nothing ->
     getMeta ref & previews (metaCore . metaBody . _Just . _2) (`vApplyElims` elims)
   VNeu (HFun ref args) elims Nothing ->
-    getFun ref & previews (funCore . _Just . funBody . _Just . _2) ((`vApplyElims` elims) . ($ snd <$> args))
+    getFun ref & previews (funCore . _Just . funBody . _Just . _2) ((`vApplyElims` elims) . ($ p2 <$> args))
   _ -> Nothing
 
 force :: ForceM => Val -> Val
 force val = fromMaybe val (forceMaybe val)
 {-# INLINE force #-}
 
-evalTele :: EvalM => Env -> Seq (Licit, Name, Local, Term) -> Term -> Tele
-evalTele env Seq.Empty ret              = Nil $ eval' env ret
-evalTele env ((l, n, r, ty) :<| xs) ret = Cons l n (eval' env ty) \x -> evalTele (env :> (r, x)) xs ret
+evalTele :: EvalM => Env -> Seq (Par Term) -> Term -> Tele
+evalTele env Seq.Empty ret                    = Nil $ eval' env ret
+evalTele env (((Tp l n r) ::: ty) :<| xs) ret = Cons l n (eval' env ty) \x -> evalTele (env :> (r, x)) xs ret
 
-evalFunBody :: EvalM => Env -> Seq (Licit, Name, Local) -> Term -> List Val -> Val
-evalFunBody env params tm vals = eval' (env <> Tsil.zipWith (\(_, _, r) v -> (r, v)) (Tsil.toList params) vals) tm
+evalFunBody :: EvalM => Env -> Seq Bind -> Term -> List Val -> Val
+evalFunBody env params tm vals = eval' (env <> Tsil.zipWith (\(Tp _ _ r) v -> (r, v)) (Tsil.toList params) vals) tm
 {-# INLINE evalFunBody #-}

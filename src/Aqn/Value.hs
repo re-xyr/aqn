@@ -14,7 +14,7 @@ data Val
 data Head
   = HLoc Local
   | HMeta MetaVar
-  | HFun FunVar (List (Licit, Val))
+  | HFun FunVar (List (Arg Val))
 
 data Elim
   = EApp Licit Val
@@ -33,11 +33,9 @@ neuLoc ref = neu0 (HLoc ref) Nothing
 
 vApply :: Licit -> Val -> Val -> Val
 vApply l f x = case f of
-  VLam l' _ clos
-    | l == l'   -> clos x
-    | otherwise -> error "Applying the wrong licit"
+  VLam _ _ clos     -> clos x
   VNeu hd elims val -> VNeu hd (elims :> EApp l x) (flip (vApply l) x <$> val)
-  _ -> error "Applying the wrong thing"
+  _                 -> error "Applying the wrong thing"
 {-# INLINE vApply #-}
 
 vApplyI, vApplyE :: Val -> Val -> Val
@@ -46,8 +44,8 @@ vApplyI = vApply Implicit
 vApplyE = vApply Explicit
 {-# INLINE vApplyE #-}
 
-vApplyArgs :: Foldable f => Val -> f (Licit, Val) -> Val
-vApplyArgs = foldl' (\v' (l, x) -> vApply l v' x)
+vApplyArgs :: Foldable f => Val -> f (Arg Val) -> Val
+vApplyArgs = foldl' (\v' (l ::: x) -> vApply l v' x)
 {-# INLINE vApplyArgs #-}
 
 vApplyElims :: Foldable f => Val -> f Elim -> Val

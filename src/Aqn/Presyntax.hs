@@ -56,6 +56,6 @@ data Predecl
   deriving (Show)
 
 data Decl
-  = DFunHead FunVar (Seq (Licit, Name, Local, Expr)) Expr
-  | DFunBody FunVar (Seq (Licit, Name, Local)) Expr
+  = DFunHead FunVar (Seq (Par Expr)) Expr
+  | DFunBody FunVar (Seq Bind) Expr
   deriving (Show)

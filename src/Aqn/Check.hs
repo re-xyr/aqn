@@ -93,7 +93,7 @@ infer ctx ex = case ex of
     pure (TLoc ref, fromMaybe (error "Not well-scoped variable") (Tsil.lookup ref ctx))
   XFun ref -> do
     fun <- fromMaybeM (throwError $ ElaborationBlocked ex (DVFun ref)) (readFun ref <&> (^. funCore))
-    args <- for (fun ^. funParams) \(l, n, _, _) -> (l, ) <$> freshLocal n
+    args <- for (fun ^. funParams) \(Tp l n _ ::: _) -> (l :::) <$> freshLocal n
     let call = wrapLambda args $ TFun ref (fmap TLoc <$> args)
     pure (call, fun ^. funTy)
   XHole -> do
@@ -116,7 +116,7 @@ freshMeta :: (Write m, Writing 'Metas) => Ctx -> Val -> Eff m Term
 freshMeta ctx _ty = do
   metavar <- MetaVar <$> fresh
   writeMeta metavar (Meta (MetaCore Nothing))
-  pure $ TMeta metavar `tApplyMany` fmap (\(r, _) -> (Implicit, TLoc r)) ctx
+  pure $ TMeta metavar `tApplyMany` fmap (\(r, _) -> Implicit ::: TLoc r) ctx
 -- {-# INLINE freshMeta #-}
 
 insert :: (Write m, Writing 'Metas, Reading 'Funs, Reading 'Locals) => NamedLicit -> Ctx -> Term -> Val -> Eff m (Maybe (Term, Val))

@@ -13,16 +13,16 @@ data Term
   | TApp Licit Term Term
   | TLoc Local
   | TMeta MetaVar
-  | TFun FunVar (Seq (Licit, Term))
+  | TFun FunVar (Seq (Arg Term))
   | TLet Local Term Term
   deriving (Show)
 
-tApplyMany :: Foldable f => Term -> f (Licit, Term) -> Term
-tApplyMany = foldl' (\f (l, x) -> TApp l f x)
+tApplyMany :: Foldable f => Term -> f (Arg Term) -> Term
+tApplyMany = foldl' (\f (l ::: x) -> TApp l f x)
 {-# INLINE tApplyMany #-}
 
-wrapLambda :: Foldable f => f (Licit, Local) -> Term -> Term
-wrapLambda params tm = foldr' (\(l, r) t -> TLam l "_" r t) tm params
+wrapLambda :: Foldable f => f (Pr Licit Local) -> Term -> Term
+wrapLambda params tm = foldr' (\(l ::: r) t -> TLam l "_" r t) tm params
 {-# INLINE wrapLambda #-}
 
 data CheckError
@@ -32,7 +32,7 @@ data CheckError
   -- ^ Non-function applied; term error
   | ElaborationBlocked Expr DefVar
   -- ^ Elaboration blocked by a previous failed definition head; term error
-  | IncorrectParamList Decl (Seq (Licit, Name, Local, Term))
+  | IncorrectParamList Decl (Seq (Par Term))
   -- ^ body param list does not match that of head; def error
   | NotSuccessfullyClaimed Decl DefVar
   -- ^ Defining without claiming; def error

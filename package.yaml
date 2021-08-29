@@ -30,6 +30,7 @@ dependencies:
 - parser-combinators
 - text
 - time
+- deepseq
 - reflection
 
 library:
@@ -94,3 +95,6 @@ default-extensions:
 - OverloadedLists
 - TypeFamilies
 - PostfixOperators
+- DeriveGeneric
+- DeriveAnyClass
+- StandaloneDeriving
