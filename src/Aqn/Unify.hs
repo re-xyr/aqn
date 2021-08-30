@@ -94,7 +94,7 @@ solveMeta ref els sln = do
   let cor = Map.fromList $ toList $ Tsil.zip (p2 <$> refs) (p2 <$> pars)
   slnT <- wellScoped ref cor sln
   let body = wrapLambda pars slnT
-  bodyV <- lift $ eval body
+  bodyV <- lift $ eval [] body
   bodyStr <- lift $ prettyTerm body
   Debug.trace ("Wrote meta " ++ show ref ++ ": " ++ show bodyStr) $
     writeMeta ref (meta & (metaCore . metaBody) ?~ (body ::: bodyV))

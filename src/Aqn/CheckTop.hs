@@ -16,7 +16,6 @@ import           Data.Function             ((&))
 import           Data.Functor              ((<&>))
 import           Data.Sequence             (Seq ((:<|)), (<|))
 import qualified Data.Sequence             as Seq
-import           Data.Tsil                 (List ((:>)))
 import qualified Data.Tsil                 as Tsil
 
 type TopM m = (Write m, Writing 'Funs, Writing 'Metas, Writing 'Locals, Member (Error CheckError) m)
@@ -24,14 +23,14 @@ type TopM m = (Write m, Writing 'Funs, Writing 'Metas, Writing 'Locals, Member (
 checkTop :: TopM m => Decl -> Eff m ()
 checkTop m = case m of
   DFunHead fv params ret -> do
-    (paramsT', retT) <- checkParams [] params ret
+    (paramsT', retT) <- checkParams topCtx params ret
     let paramsT = Tsil.toSeq paramsT'
     tele <- lift $ evalTele [] paramsT retT
     updateFun fv (\f -> f & funCore ?~ FunCore paramsT retT tele (teleToTy tele) Nothing)
   DFunBody fv params body -> do
     let fakeup = checkTop (fakeFunHead fv params) `catchError` \(_ :: CheckError) -> throwError $ NotSuccessfullyClaimed m (DVFun fv)
     fun <- fromMaybeM (fakeup *> (readFun fv <&> (^?! funCore . _Just))) (readFun fv <&> (^. funCore))
-    (ctx, ret) <- teleToCtx [] (fun ^. funParams) (fun ^. funTele) params
+    (ctx, ret) <- teleToCtx topCtx (fun ^. funParams) (fun ^. funTele) params
     bodyT <- check ctx body ret
     bodyV <- lift $ evalFunBody [] params bodyT
     updateFun fv \x -> x & funCore ?~ (fun & funBody ?~ (bodyT ::: bodyV))
@@ -40,7 +39,7 @@ checkTop m = case m of
     teleToCtx ctx _ (Nil ret) [] = pure (ctx, ret)
     teleToCtx ctx pars (Cons l _ dom cod) ((Tp l' _ r) :<| xs)
       | l /= l' = throwError $ IncorrectParamList m pars
-      | otherwise = teleToCtx (ctx :> (r, dom)) pars (cod $ neuLoc r) xs
+      | otherwise = teleToCtx (bound r dom ctx) pars (cod $ neuLoc r) xs
     teleToCtx _ pars _ _ = throwError $ IncorrectParamList m pars
 
 fakeFunHead :: FunVar -> Seq Bind -> Decl
@@ -53,6 +52,6 @@ checkParams ctx Seq.Empty ret = do
   pure ([], retT)
 checkParams ctx (b@(Tp _ _ r) ::: ty :<| xs) ret = do
   tyT <- check ctx ty VU
-  tyV <- lift $ eval tyT
-  (rest, retT) <- checkParams (ctx :> (r, tyV)) xs ret
+  tyV <- lift $ eval' ctx tyT
+  (rest, retT) <- checkParams (bound r tyV ctx) xs ret
   pure (b ::: tyT <| rest, retT)

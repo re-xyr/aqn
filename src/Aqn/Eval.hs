@@ -5,7 +5,7 @@ import           Aqn.Ref
 import           Aqn.Syntax
 import           Aqn.Top
 import           Aqn.Value
-import           Control.Lens        (_2, _Just, previews, (^.))
+import           Control.Lens        (_2, _Just, previews, (^?))
 import           Control.Monad.Freer (Eff)
 import           Data.Foldable       (Foldable (toList))
 import           Data.Function       ((&))
@@ -20,30 +20,26 @@ type Env = List (Local, Val)
 
 type EvalM = (Retrieve, Reading 'Metas, Reading 'Funs)
 
-eval :: EvalM => Term -> Val
-{-# INLINE eval #-}
-eval = eval' []
-
-eval' :: EvalM => Env -> Term -> Val
-eval' env tm = case tm of
+eval :: EvalM => Env -> Term -> Val
+eval env tm = case tm of
   TLam l n x m  -> VLam l n (closure env x m)
-  TPi l n x t m -> VPi l n (eval' env t) (closure env x m)
+  TPi l n x t m -> VPi l n (eval env t) (closure env x m)
   TU            -> VU
-  TApp l f x    -> vApply l (eval' env f) (eval' env x)
+  TApp l f x    -> vApply l (eval env f) (eval env x)
   TLoc r        -> fromMaybe (neuLoc r) (Tsil.lookup r env)
   TFun f xs     -> evalCall env f (Tsil.toList xs)
-  TLet r x y    -> eval' (env :> (r, eval' env x)) y
-  TMeta r       -> neu0 (HMeta r) (p2 <$> (getMeta r ^. metaCore . metaBody))
+  TLet r x y    -> eval (env :> (r, eval env x)) y
+  TMeta r       -> neu0 (HMeta r) (getMeta r ^? metaCore . metaBody . _Just . _2)
 
 evalCall :: EvalM => Env -> FunVar -> List (Arg Term) -> Val
 evalCall env r args =
-  let args' = fmap (eval' env <$>) args
+  let args' = fmap (eval env <$>) args
   in neu0 (HFun r args') $
     getFun r & previews (funCore . _Just . funBody . _Just . _2) ($ p2 <$> args')
 {-# INLINE evalCall #-}
 
 closure :: EvalM => Env -> Local -> Term -> (Val -> Val)
-closure env ref tm val = eval' (env :> (ref, val)) tm
+closure env ref tm val = eval (env :> (ref, val)) tm
 {-# INLINE closure #-}
 
 data Unfold
@@ -109,9 +105,9 @@ force val = fromMaybe val (forceMaybe val)
 {-# INLINE force #-}
 
 evalTele :: EvalM => Env -> Seq (Par Term) -> Term -> Tele
-evalTele env Seq.Empty ret                    = Nil $ eval' env ret
-evalTele env (((Tp l n r) ::: ty) :<| xs) ret = Cons l n (eval' env ty) \x -> evalTele (env :> (r, x)) xs ret
+evalTele env Seq.Empty ret                    = Nil $ eval env ret
+evalTele env (((Tp l n r) ::: ty) :<| xs) ret = Cons l n (eval env ty) \x -> evalTele (env :> (r, x)) xs ret
 
 evalFunBody :: EvalM => Env -> Seq Bind -> Term -> List Val -> Val
-evalFunBody env params tm vals = eval' (env <> Tsil.zipWith (\(Tp _ _ r) v -> (r, v)) (Tsil.toList params) vals) tm
+evalFunBody env params tm vals = eval (env <> Tsil.zipWith (\(Tp _ _ r) v -> (r, v)) (Tsil.toList params) vals) tm
 {-# INLINE evalFunBody #-}
