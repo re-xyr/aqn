@@ -5,16 +5,15 @@ import           Aqn.Ref
 import           Aqn.Syntax
 import           Aqn.Top
 import           Aqn.Value
-import           Control.Lens        (_2, _Just, previews, (^?))
-import           Control.Monad.Freer (Eff)
-import           Data.Foldable       (Foldable (toList))
-import           Data.Function       ((&))
-import           Data.Maybe          (fromMaybe)
-import           Data.Reflection     (Given (given), give)
-import           Data.Sequence       (Seq ((:<|)))
-import qualified Data.Sequence       as Seq
-import           Data.Tsil           (List ((:>)))
-import qualified Data.Tsil           as Tsil
+import           Control.Lens    (_2, _Just, previews, (^?))
+import           Data.Foldable   (Foldable (toList))
+import           Data.Function   ((&))
+import           Data.Maybe      (fromMaybe)
+import           Data.Reflection (Given (given), give)
+import           Data.Sequence   (Seq ((:<|)))
+import qualified Data.Sequence   as Seq
+import           Data.Tsil       (List ((:>)))
+import qualified Data.Tsil       as Tsil
 
 type Env = List (Local, Val)
 
@@ -47,15 +46,16 @@ data Unfold
   | Enfold
   deriving (Show, Eq)
 
-type QuoteM m = (Write m, Writing 'Locals, Reading 'Metas, Reading 'Funs)
+type QuoteM m = (M m, Writing 'Locals, Reading 'Metas, Reading 'Funs)
 
-quoteE, quoteU :: QuoteM m => Val -> Eff m Term
+quoteE, quoteU :: QuoteM m => Val -> m Term
 quoteE v = give Enfold $ quote v
 {-# INLINE quoteE #-}
 quoteU v = give Unfold $ quote v
 {-# INLINE quoteU #-}
+{-# SPECIALIZE quoteE :: (Writing 'Locals, Reading 'Metas, Reading 'Funs) => Val -> TCM Term #-}
 
-quote :: (QuoteM m, Given Unfold) => Val -> Eff m Term
+quote :: (QuoteM m, Given Unfold) => Val -> m Term
 quote val = case val of
   VPi licit n dom cod -> do
     fresh <- freshLocal n
@@ -65,29 +65,33 @@ quote val = case val of
     TLam licit n fresh <$> quote (body $ neuLoc fresh)
   VNeu hd els pre
     | given == Unfold, Nothing <- pre -> do
-      fd <- lift $ forceMaybe val
+      fd <- purely $ forceMaybe val
       maybe (quoteHd hd >>= flip quoteElims els) quote fd
     | given == Unfold, Just x <- pre -> quote x
     | otherwise -> quoteHd hd >>= flip quoteElims els
   VU -> pure TU
+{-# SPECIALIZE quote :: (Writing 'Locals, Reading 'Metas, Reading 'Funs, Given Unfold) => Val -> TCM Term #-}
 
-quoteHd :: (QuoteM m, Given Unfold) => Head -> Eff m Term
+quoteHd :: (QuoteM m, Given Unfold) => Head -> m Term
 quoteHd hd = case hd of
   HLoc ref      -> pure $ TLoc ref
   HMeta ref     -> pure $ TMeta ref
   HFun ref args -> TFun ref . Seq.fromList . toList <$> traverse (traverse quote) args
 {-# INLINE quoteHd #-}
+{-# SPECIALIZE quoteHd :: (Writing 'Locals, Reading 'Metas, Reading 'Funs, Given Unfold) => Head -> TCM Term #-}
 
-quoteElims :: (QuoteM m, Given Unfold) => Term -> List Elim -> Eff m Term
+quoteElims :: (QuoteM m, Given Unfold) => Term -> List Elim -> m Term
 quoteElims t Tsil.Empty = pure t
 quoteElims t (xs :> x) = do
   t' <- quoteElim t x
   quoteElims t' xs
+{-# SPECIALIZE quoteElims :: (Writing 'Locals, Reading 'Metas, Reading 'Funs, Given Unfold) => Term -> List Elim -> TCM Term #-}
 
-quoteElim :: (QuoteM m, Given Unfold) => Term -> Elim -> Eff m Term
+quoteElim :: (QuoteM m, Given Unfold) => Term -> Elim -> m Term
 quoteElim tm elim = case elim of
   EApp l val -> TApp l tm <$> quote val
 {-# INLINE quoteElim #-}
+{-# SPECIALIZE quoteElim :: (Writing 'Locals, Reading 'Metas, Reading 'Funs, Given Unfold) => Term -> Elim -> TCM Term #-}
 
 type ForceM = (Retrieve, Reading 'Metas, Reading 'Funs)
 

@@ -9,9 +9,9 @@ import           Aqn.Top
 import           Aqn.Value
 import           Control.Lens              ((?~), (^.))
 import           Control.Monad             (unless)
+import           Control.Monad.Error.Class (MonadError (catchError, throwError))
+import           Control.Monad.Except      (ExceptT, runExceptT)
 import           Control.Monad.Extra       (fromMaybeM)
-import           Control.Monad.Freer       (Eff, Member)
-import           Control.Monad.Freer.Error (Error, catchError, runError, throwError)
 import           Data.Foldable             (Foldable (toList), foldlM)
 import           Data.Function             ((&))
 import           Data.Map.Strict           (Map)
@@ -22,24 +22,26 @@ import           Data.Tsil                 (List (Empty, (:>)))
 import qualified Data.Tsil                 as Tsil
 import qualified Debug.Trace               as Debug
 
-type UnifyM m = (Write m, Writing 'Locals, Writing 'Metas, Reading 'Funs)
-type UnifyE m = Member (Error UnifyError) m
+type UnifyM m = (M m, Writing 'Locals, Writing 'Metas, Reading 'Funs)
+type UnifyE m = MonadError UnifyError m
 
-unify :: UnifyM m => Val -> Val -> Eff m (Maybe UnifyError)
+unify :: UnifyM m => Val -> Val -> m (Maybe UnifyError)
 unify l r =
-  either (\(x :: UnifyError) -> Just x) (\() -> Nothing) <$> runError (unify' l r)
+  either (\(x :: UnifyError) -> Just x) (\() -> Nothing) <$> runExceptT (unify' l r)
+{-# SPECIALIZE unify :: (Writing 'Locals, Writing 'Metas, Reading 'Funs) => Val -> Val -> TCM (Maybe UnifyError) #-}
 
-unify' :: (UnifyM m, UnifyE m) => Val -> Val -> Eff m ()
+unify' :: (UnifyM m, UnifyE m) => Val -> Val -> m ()
 unify' l r = unifyShallow l r `catchError` \(_ :: UnifyError) -> do
-  (x, y) <- lift (force l, force r)
+  (x, y) <- purely (force l, force r)
   unifyShallow x y `catchError` \(_ :: UnifyError) -> unifyDeep x y
+{-# SPECIALIZE unify' :: (Writing 'Locals, Writing 'Metas, Reading 'Funs) => Val -> Val -> ExceptT UnifyError TCM () #-}
 
-unifyShallow :: (UnifyM m, UnifyE m) => Val -> Val -> Eff m ()
+unifyShallow :: (UnifyM m, UnifyE m) => Val -> Val -> m ()
 unifyShallow l r = do
   -- ql <- quoteE l
   -- qr <- quoteE r
-  -- tl <- lift $ prettyTerm ql
-  -- tr <- lift $ prettyTerm qr
+  -- tl <- purely $ prettyTerm ql
+  -- tr <- purely $ prettyTerm qr
   -- Debug.trace ("checking " ++ show tl ++ " and " ++ show tr) $ pure ()
   case (l, r) of
     -- Approximate
@@ -51,13 +53,14 @@ unifyShallow l r = do
       unifyMany unifyArg args args'
       unifyMany unifyElim els els'
     _ -> throwError CantUnifyApprox
+{-# SPECIALIZE unifyShallow :: (Writing 'Locals, Writing 'Metas, Reading 'Funs) => Val -> Val -> ExceptT UnifyError TCM () #-}
 
-unifyDeep :: (UnifyM m, UnifyE m) => Val -> Val -> Eff m ()
+unifyDeep :: (UnifyM m, UnifyE m) => Val -> Val -> m ()
 unifyDeep l r = do
   -- ql <- quoteE l
   -- qr <- quoteE r
-  -- tl <- lift $ prettyTerm ql
-  -- tr <- lift $ prettyTerm qr
+  -- tl <- purely $ prettyTerm ql
+  -- tr <- purely $ prettyTerm qr
   -- Debug.trace ("checking " ++ show tl ++ " and " ++ show tr) $ pure ()
   case (l, r) of
     (VU, VU) -> pure ()
@@ -80,8 +83,9 @@ unifyDeep l r = do
     (_, VNeu (HMeta _) _ Nothing) -> unify' r l
 
     _ -> throwError DontKnowHowToUnify
+{-# SPECIALIZE unifyDeep :: (Writing 'Locals, Writing 'Metas, Reading 'Funs) => Val -> Val -> ExceptT UnifyError TCM () #-}
 
-solveMeta :: (UnifyM m, UnifyE m) => MetaVar -> List Elim -> Val -> Eff m ()
+solveMeta :: (UnifyM m, UnifyE m) => MetaVar -> List Elim -> Val -> m ()
 solveMeta ref els sln = do
   meta <- readMeta ref
   args <- ensure NoPatternCondition $ allApps els
@@ -94,8 +98,8 @@ solveMeta ref els sln = do
   let cor = Map.fromList $ toList $ Tsil.zip (p2 <$> refs) (p2 <$> pars)
   slnT <- wellScoped ref cor sln
   let body = wrapLambda pars slnT
-  bodyV <- lift $ eval [] body
-  bodyStr <- lift $ prettyTerm body
+  bodyV <- purely $ eval [] body
+  bodyStr <- purely $ prettyTerm body
   Debug.trace ("Wrote meta " ++ show ref ++ ": " ++ show bodyStr) $
     writeMeta ref (meta & (metaCore . metaBody) ?~ (body ::: bodyV))
   where
@@ -112,12 +116,13 @@ solveMeta ref els sln = do
     allDistinct set (xs :> (_ ::: x))
       | x `elem` set = Nothing
       | otherwise = allDistinct (Set.insert x set) xs
+{-# SPECIALIZE solveMeta :: (Writing 'Locals, Writing 'Metas, Reading 'Funs) => MetaVar -> List Elim -> Val -> ExceptT UnifyError TCM () #-}
 
-type SolveM m = (Write m, Writing 'Locals, Reading 'Metas, Reading 'Funs)
+type SolveM m = (M m, Writing 'Locals, Reading 'Metas, Reading 'Funs)
 
-wellScoped :: (SolveM m, UnifyE m) => MetaVar -> Map Local Local -> Val -> Eff m Term
+wellScoped :: (SolveM m, UnifyE m) => MetaVar -> Map Local Local -> Val -> m Term
 wellScoped self refs vl' = do
-  vl <- lift $ force vl'
+  vl <- purely $ force vl'
   case vl of
     VPi l n dom cod -> do
       ref <- freshLocal n
@@ -138,31 +143,35 @@ wellScoped self refs vl' = do
           TFun f . Tsil.toSeq <$> traverse (traverse (wellScoped self refs)) args
       foldlM (wellScopedElim self refs) hd' els'
     VU -> pure TU
+{-# SPECIALIZE wellScoped :: (Writing 'Locals, Reading 'Metas, Reading 'Funs) => MetaVar -> Map Local Local -> Val -> ExceptT UnifyError TCM Term #-}
 
-wellScopedElim :: (SolveM m, UnifyE m) => MetaVar -> Map Local Local -> Term -> Elim -> Eff m Term
+wellScopedElim :: (SolveM m, UnifyE m) => MetaVar -> Map Local Local -> Term -> Elim -> m Term
 wellScopedElim self refs tm el = case el of
   EApp li val -> TApp li tm <$> wellScoped self refs val
 {-# INLINE wellScopedElim #-}
+{-# SPECIALIZE wellScopedElim :: (Writing 'Locals, Reading 'Metas, Reading 'Funs) => MetaVar -> Map Local Local -> Term -> Elim -> ExceptT UnifyError TCM Term #-}
 
-unifyMany :: (UnifyM m, UnifyE m) => (a -> a -> Eff m ()) -> List a -> List a -> Eff m ()
+unifyMany :: (UnifyM m, UnifyE m) => (a -> a -> m ()) -> List a -> List a -> m ()
 unifyMany _ Tsil.Empty Tsil.Empty = pure ()
 unifyMany f (xs :> x) (ys :> y) = do
   unifyMany f xs ys
   f x y
 unifyMany _ _ _ = throwError DifferentSpineLength
+{-# SPECIALIZE unifyMany :: (Writing 'Locals, Writing 'Metas, Reading 'Funs) => (a -> a -> ExceptT UnifyError TCM ()) -> List a -> List a -> ExceptT UnifyError TCM () #-}
 
-unifyArg :: (UnifyM m, UnifyE m) => Arg Val -> Arg Val -> Eff m ()
+unifyArg :: (UnifyM m, UnifyE m) => Arg Val -> Arg Val -> m ()
 unifyArg (licit ::: arg) (licit' ::: arg') = do
   unless (licit == licit') $ throwError CantUnifyLicit
   unify' arg arg'
 {-# INLINE unifyArg #-}
-
--- unifySpine :: (UnifyM m, UnifyE m, Foldable f, MonadZip f) => f Elim -> f Elim -> Eff m ()
+{-# SPECIALIZE unifyArg :: (Writing 'Locals, Writing 'Metas, Reading 'Funs) => Arg Val -> Arg Val -> ExceptT UnifyError TCM () #-}
+-- unifySpine :: (UnifyM m, UnifyE m, Foldable f, MonadZip f) => f Elim -> f Elim -> m ()
 -- unifySpine l r = traverse_ (uncurry unifyElim) (mzip l r)
 -- {-# INLINE unifySpine #-}
 
-unifyElim :: (UnifyM m, UnifyE m) => Elim -> Elim -> Eff m ()
+unifyElim :: (UnifyM m, UnifyE m) => Elim -> Elim -> m ()
 unifyElim l r = case (l, r) of
   (EApp licit arg, EApp licit' arg') ->
     unifyArg (licit ::: arg) (licit' ::: arg')
 {-# INLINE unifyElim #-}
+{-# SPECIALIZE unifyElim :: (Writing 'Locals, Writing 'Metas, Reading 'Funs) => Elim -> Elim -> ExceptT UnifyError TCM () #-}

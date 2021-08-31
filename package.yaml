@@ -21,6 +21,7 @@ description:         Please see the README on GitHub at <https://github.com/re-x
 dependencies:
 - base
 - freer-simple
+- mtl
 - lens
 - containers
 - extra

@@ -7,9 +7,11 @@ import           Aqn.Syntax
 import           Aqn.Value
 import           Control.Lens               (at, ix, (?~), (^?!))
 import           Control.Lens.TH            (makeLenses)
-import           Control.Monad.Freer        (Eff, Member, Members)
-import           Control.Monad.Freer.Fresh  (Fresh, fresh)
-import           Control.Monad.Freer.Reader (Reader, ask)
+import           Control.Monad.Fresh.Class  (MonadFresh (fresh))
+import           Control.Monad.Reader       (ReaderT)
+import           Control.Monad.Reader.Class (MonadReader (ask))
+import           Control.Monad.State.Strict (StateT)
+import           Control.Monad.Store.Class  (MonadStore (readStore, writeStore))
 import           Data.Function              ((&))
 import           Data.IORef                 (IORef)
 import           Data.IntMap.Strict         (IntMap)
@@ -64,19 +66,21 @@ data Global = Global
   }
 makeLenses ''Global
 
-type Write m = Members '[Reader (IORef Global), Store', Fresh] m
+type TCM = ReaderT (IORef Global) (StateT Int IO)
+
+type M m = (MonadReader (IORef Global) m, MonadStore IORef m, MonadFresh m)
 type Retrieve = Given Global
 
-readGlobal :: Write m => Eff m Global
+readGlobal :: M m => m Global
 readGlobal = ask @(IORef Global) >>= readStore
 
-writeGlobal :: Write m => Global -> Eff m ()
+writeGlobal :: M m => Global -> m ()
 writeGlobal x = do
   ref <- ask @(IORef Global)
   writeStore ref x
 
-lift :: Write m => (Retrieve => a) -> Eff m a
-lift f = do
+purely :: M m => (Retrieve => a) -> m a
+purely f = do
   global <- readGlobal
   pure $ give global f
 
@@ -84,13 +88,13 @@ getMeta :: (Retrieve, Reading 'Metas) => MetaVar -> Meta
 getMeta (MetaVar r) = given ^?! (metas . ix r)
 {-# INLINE getMeta #-}
 
-readMeta :: (Write m, Reading 'Metas) => MetaVar -> Eff m Meta
-readMeta r = lift (getMeta r)
+readMeta :: (M m, Reading 'Metas) => MetaVar -> m Meta
+readMeta r = purely (getMeta r)
 -- {-# INLINE readMeta #-}
 
 -- Do not apply eval/quote etc directly on this via fmap
 -- because that will use the OLD global environmet before the update
-writeMeta :: (Write m, Writing 'Metas) => MetaVar -> Meta -> Eff m ()
+writeMeta :: (M m, Writing 'Metas) => MetaVar -> Meta -> m ()
 writeMeta (MetaVar r) x = do
   global <- readGlobal
   writeGlobal $ global & (metas . at r) ?~ x
@@ -100,17 +104,17 @@ getFun :: (Retrieve, Reading 'Funs) => FunVar -> Fun
 getFun (FunVar r) = given ^?! (funs . ix r)
 {-# INLINE getFun #-}
 
-readFun :: (Write m, Reading 'Funs) => FunVar -> Eff m Fun
-readFun r = lift (getFun r)
+readFun :: (M m, Reading 'Funs) => FunVar -> m Fun
+readFun r = purely (getFun r)
 -- {-# INLINE readFun #-}
 
-writeFun :: (Write m, Writing 'Funs) => FunVar -> Fun -> Eff m ()
+writeFun :: (M m, Writing 'Funs) => FunVar -> Fun -> m ()
 writeFun (FunVar r) x = do
   global <- readGlobal
   writeGlobal $ global & (funs . at r) ?~ x
 -- {-# INLINE writeFun #-}
 
-updateFun :: (Write m, Writing 'Funs) => FunVar -> (Fun -> Fun) -> Eff m ()
+updateFun :: (M m, Writing 'Funs) => FunVar -> (Fun -> Fun) -> m ()
 updateFun r f = do
   fn <- readFun r
   writeFun r (f fn)
@@ -120,18 +124,18 @@ getLocal :: (Retrieve, Reading 'Locals) => Local -> LocalInfo
 getLocal (Local r) = given ^?! (locals . ix r)
 {-# INLINE getLocal #-}
 
-readLocal :: (Write m, Reading 'Locals) => Local -> Eff m LocalInfo
-readLocal r = lift (getLocal r)
+readLocal :: (M m, Reading 'Locals) => Local -> m LocalInfo
+readLocal r = purely (getLocal r)
 -- {-# INLINE readLocal #-}
 
-freshLocal :: (Write m, Writing 'Locals, Member Fresh m) => Name -> Eff m Local
+freshLocal :: (M m, Writing 'Locals, MonadFresh m) => Name -> m Local
 freshLocal n = do
   i <- fresh
   global <- readGlobal
   writeGlobal $ global & (locals . at i) ?~ LocalInfo n
   pure $ Local i
 
-freshLocal' :: (Write m, Writing 'Locals, Members '[Fresh] m) => Eff m Local
+freshLocal' :: (M m, Writing 'Locals, MonadFresh m) => m Local
 freshLocal' = do
   i <- fresh
   global <- readGlobal

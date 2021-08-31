@@ -9,10 +9,9 @@ import           Aqn.Top
 import           Aqn.Unify                 (unify)
 import           Aqn.Value
 import           Control.Lens              (makeLenses, (%~), (^.))
+import           Control.Monad.Error.Class (MonadError (throwError))
 import           Control.Monad.Extra       (fromMaybeM)
-import           Control.Monad.Freer       (Eff, Member)
-import           Control.Monad.Freer.Error (Error, throwError)
-import           Control.Monad.Freer.Fresh (fresh)
+import           Control.Monad.Fresh.Class (MonadFresh (fresh))
 import           Data.Function             ((&))
 import           Data.Functor              ((<&>))
 import           Data.Maybe                (fromJust, fromMaybe)
@@ -43,11 +42,11 @@ eval' :: EvalM => Ctx -> Term -> Val
 eval' ctx = eval (ctx ^. ctxEnv)
 {-# INLINE eval' #-}
 
-type CheckM m = (Write m, Member (Error CheckError) m, Writing 'Locals, Writing 'Metas, Reading 'Funs)
+type CheckM m = (M m, MonadError CheckError m, Writing 'Locals, Writing 'Metas, Reading 'Funs)
 
-check :: CheckM m => Ctx -> Expr -> Val -> Eff m Term
+check :: CheckM m => Ctx -> Expr -> Val -> m Term
 check ctx ex ty' = do
-  ty <- lift $ force ty'
+  ty <- purely $ force ty'
   case (ex, ty) of
     (XLam licit n par body, VPi licit' _ dom cod) | licit == licit' ->
       TLam licit n par <$> check (bound par dom ctx) body (cod $ neuLoc par)
@@ -58,9 +57,9 @@ check ctx ex ty' = do
       freshMeta ctx ty
     (XLet ref vTy v body, _) -> do
       vTyT <- check ctx vTy VU
-      vTyV <- lift $ eval' ctx vTyT
+      vTyV <- purely $ eval' ctx vTyT
       vT <- check ctx v vTyV
-      vV <- lift $ eval' ctx vT
+      vV <- purely $ eval' ctx vT
       bodyT <- check (defined ref vTyV vV ctx) body ty
       pure $ TLet ref vT bodyT
     _ -> do
@@ -71,16 +70,16 @@ check ctx ex ty' = do
           err <- CantUnify reason ex <$> quoteE tyIn <*> quoteE ty
           throwError err
 
-infer :: CheckM m => Ctx -> Expr -> Eff m (Term, Val)
+infer :: CheckM m => Ctx -> Expr -> m (Term, Val)
 infer ctx ex = case ex of
   XTy x ty -> do
     tyT <- check ctx ty VU
-    tyV <- lift $ eval' ctx tyT
+    tyV <- purely $ eval' ctx tyT
     xt <- check ctx x tyV
     pure (xt, tyV)
   XPi licit n par dom cod -> do
     dom' <- check ctx dom VU
-    domV' <- lift $ eval' ctx dom'
+    domV' <- purely $ eval' ctx dom'
     cod' <- check (bound par domV' ctx) cod VU
     pure (TPi licit n par dom' cod', VU)
   XU -> pure (TU, VU)
@@ -88,12 +87,12 @@ infer ctx ex = case ex of
     (oF, oTy) <- infer ctx f
     insert licit ctx oF oTy >>= \case
       Just (f', ty') -> do
-        ty <- lift $ force ty'
+        ty <- purely $ force ty'
         case ty of
           VPi _ _ dom cod -> do
             x' <- check ctx x dom
-            x'E <- lift $ eval' ctx x'
-            appd <- lift $ TApp (unNamedLicit licit) f' x'
+            x'E <- purely $ eval' ctx x'
+            appd <- purely $ TApp (unNamedLicit licit) f' x'
             pure (appd, cod x'E)
           _ -> do
             oTyT <- quoteE oTy
@@ -108,9 +107,9 @@ infer ctx ex = case ex of
     pure (tm, ty)
   XLet ref vTy v body -> do
     vTyT <- check ctx vTy VU
-    vTyV <- lift $ eval' ctx vTyT
+    vTyV <- purely $ eval' ctx vTyT
     vT <- check ctx v vTyV
-    vV <- lift $ eval' ctx vT
+    vV <- purely $ eval' ctx vT
     (bodyT, bodyTyV) <- infer (defined ref vTyV vV ctx) body
     pure (TLet ref vT bodyT, bodyTyV)
   XLoc ref ->
@@ -122,47 +121,47 @@ infer ctx ex = case ex of
     pure (call, fun ^. funTy)
   XHole -> do
     tyMeta <- freshMeta ctx VU
-    ty <- lift $ eval' ctx tyMeta
+    ty <- purely $ eval' ctx tyMeta
     tm <- freshMeta ctx ty
     pure (tm, ty)
 
-freshDomCod :: CheckM m => Ctx -> Name -> Eff m (Val, Val -> Val)
+freshDomCod :: CheckM m => Ctx -> Name -> m (Val, Val -> Val)
 freshDomCod ctx n = do
   domMeta <- freshMeta ctx VU
-  dom <- lift (eval' ctx domMeta)
+  dom <- purely (eval' ctx domMeta)
   tyRef <- freshLocal n
   codMeta <- freshMeta (bound tyRef dom ctx) VU
-  clos <- lift $ closure [] tyRef codMeta
+  clos <- purely $ closure [] tyRef codMeta
   pure (dom, clos)
 -- {-# INLINE freshDomCod #-}
 
-freshMeta :: (Write m, Writing 'Metas) => Ctx -> Val -> Eff m Term
+freshMeta :: (M m, Writing 'Metas) => Ctx -> Val -> m Term
 freshMeta ctx _ty = do
   metavar <- MetaVar <$> fresh
   writeMeta metavar (Meta (MetaCore Nothing))
   pure $ TMeta metavar `tApplyMany` fmap (\(r, _) -> Implicit ::: TLoc r) (ctx ^. ctxBoundTele)
 -- {-# INLINE freshMeta #-}
 
-insert :: (Write m, Writing 'Metas, Reading 'Funs, Reading 'Locals) => NamedLicit -> Ctx -> Term -> Val -> Eff m (Maybe (Term, Val))
+insert :: (M m, Writing 'Metas, Reading 'Funs, Reading 'Locals) => NamedLicit -> Ctx -> Term -> Val -> m (Maybe (Term, Val))
 insert licit ctx tm ty' = do
-  ty <- lift $ force ty'
+  ty <- purely $ force ty'
   case ty of
     VPi licit' n dom cod
       | matchNamedLicit licit licit' n -> pure $ Just (tm, ty)
       | licit' == Implicit -> do
         meta <- freshMeta ctx dom
-        metaV <- lift (eval' ctx meta)
+        metaV <- purely (eval' ctx meta)
         let appd = TApp Implicit tm meta
         insert licit ctx appd (cod metaV)
       | otherwise -> pure Nothing
     _ -> pure $ Just (tm, ty)
 
--- infer :: CheckM m => Ctx -> Expr -> Eff m (Val, Term)
+-- infer :: CheckM m => Ctx -> Expr -> m (Val, Term)
 -- infer ctx ex = do
 --   (ty, tm) <- infer' ctx ex
---   lift' $ (ty, ) <$> finalizeCall tm
+--   purely' $ (ty, ) <$> finalizeCall tm
 
--- finalizeCall :: (Retrieve, Member Fresh m) => Term -> Eff m Term
+-- finalizeCall :: (Retrieve, Member Fresh m) => Term -> m Term
 -- finalizeCall tm = case tm of
 --   TFun r xs | la < lp -> do
 --     args <- mapM (\(l, _, _) -> (l, ) <$> freshLocal) (Seq.take (lp - la) pars)

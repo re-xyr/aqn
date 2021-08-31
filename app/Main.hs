@@ -12,15 +12,15 @@ import           Aqn.Syntax
 import           Aqn.Top
 import           Aqn.Unify                  (UnifyM, unify)
 import           Aqn.Value
-import           Control.DeepSeq            (NFData)
+import           Control.DeepSeq            (NFData, deepseq)
 import           Control.Lens               (_1, _Just, (^?!))
 import           Control.Monad              (replicateM, replicateM_)
-import           Control.Monad.Freer        (Eff, runM)
-import           Control.Monad.Freer.Error  (catchError, runError)
-import           Control.Monad.Freer.Fresh  (evalFresh)
-import           Control.Monad.Freer.Reader (runReader)
+import           Control.Monad.Error.Class  (MonadError (catchError))
+import           Control.Monad.Except       (ExceptT, runExceptT)
+import           Control.Monad.Reader       (ReaderT (runReaderT), runReader)
+import           Control.Monad.State.Strict (StateT (runStateT), evalStateT, runState)
 import           Data.Functor               ((<&>))
-import           Data.IORef                 (newIORef)
+import           Data.IORef                 (IORef, newIORef)
 import qualified Data.IntMap.Strict         as IntMap
 import qualified Data.Text                  as T
 import           Data.Time.Clock
@@ -52,7 +52,8 @@ ePi = XPi Explicit
 ePiI :: Name -> Local -> Expr -> Expr -> Expr
 ePiI = XPi Implicit
 
-example1 :: (CheckM m) => Eff m (Doc ann)
+
+example1 :: (CheckM m) => m (Doc ann)
 example1 = do
   xs <- sequence (freshLocal . T.pack . (:[]) <$> ['a'..'z'])
   case xs of
@@ -69,21 +70,21 @@ example1 = do
       -- let esmty = ePi "n" n (ePi "o" o XU XU) (ePi "p" p XU XU)
       let esmty = ePi "n" n XU XU
       tapty <- check topCtx eapty VU
-      vapty <- lift $ eval [] tapty
+      vapty <- purely $ eval [] tapty
       -- tap <- check [] eap vapty
       -- tsmty <- check [] esmty VU
-      -- vsmty <- lift $ eval tsmty
+      -- vsmty <- purely $ eval tsmty
       tidty <- check topCtx eidty VU
-      vidty <- lift $ eval [] tidty
+      vidty <- purely $ eval [] tidty
       catchError (do
         tmm <- check topCtx (eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt `eApp` eidt) vidty
-        lift (prettyTerm tmm)) \(e :: CheckError) -> lift $ prettyCheckError e
+        purely (prettyTerm tmm)) \(e :: CheckError) -> purely $ prettyCheckError e
       -- tidty <- check [] eidty VU
-      -- vidty <- lift $ eval tidty
+      -- vidty <- purely $ eval tidty
       -- tid <- check [] eid vidty
       -- tapp <- check [] eapp vidty
-      -- vapp <- lift $ eval tapp
-      -- qapp <- lift' $ quoteE vapp
+      -- vapp <- purely $ eval tapp
+      -- qapp <- purely' $ quoteE vapp
       -- pure [tapty, tap, tidty, tid]
     _ -> undefined
 
@@ -93,12 +94,12 @@ example1' :: (Either CheckError (Doc ann))
 {-# NOINLINE example1' #-}
 example1' = unsafePerformIO do
   globalR <- newIORef (Global IntMap.empty IntMap.empty IntMap.empty)
-  runM $ runError $ runStore $ evalFresh 0 $ runReader globalR example1
+  runExceptT $ evalStateT (runReaderT (example1 :: ReaderT (IORef Global) (StateT Int (ExceptT CheckError IO)) (Doc ann)) globalR) 0
 
 -- >>> example1'
 -- Right λ{l}. (λ{e}. λf. f) {?27 {l}} ((λ{e}. λf. f) {?28 {l}}) ((λ{e}. λf. f) {?31 {l}}) ((λ{e}. λf. f) {?34 {l}}) ((λ{e}. λf. f) {?37 {l}}) ((λ{e}. λf. f) {?40 {l}}) ((λ{e}. λf. f) {?43 {l}}) ((λ{e}. λf. f) {?46 {l}}) ((λ{e}. λf. f) {?49 {l}}) ((λ{e}. λf. f) {?52 {l}}) ((λ{e}. λf. f) {?55 {l}}) ((λ{e}. λf. f) {?58 {l}}) ((λ{e}. λf. f) {?61 {l}}) ((λ{e}. λf. f) {?64 {l}}) ((λ{e}. λf. f) {?67 {l}}) ((λ{e}. λf. f) {?70 {l}}) ((λ{e}. λf. f) {?73 {l}}) ((λ{e}. λf. f) {?76 {l}}) ((λ{e}. λf. f) {?79 {l}}) ((λ{e}. λf. f) {?82 {l}}) ((λ{e}. λf. f) {?85 {l}}) ((λ{e}. λf. f) {?88 {l}}) ((λ{e}. λf. f) {?91 {l}}) ((λ{e}. λf. f) {?94 {l}}) ((λ{e}. λf. f) {?97 {l}}) ((λ{e}. λf. f) {?100 {l}}) ((λ{e}. λf. f) {?103 {l}}) ((λ{e}. λf. f) {?106 {l}}) ((λ{e}. λf. f) {?109 {l}}) ((λ{e}. λf. f) {?112 {l}}) ((λ{e}. λf. f) {?115 {l}}) ((λ{e}. λf. f) {?118 {l}}) ((λ{e}. λf. f) {?121 {l}}) ((λ{e}. λf. f) {?124 {l}}) ((λ{e}. λf. f) {?127 {l}}) ((λ{e}. λf. f) {?130 {l}}) ((λ{e}. λf. f) {?133 {l}}) ((λ{e}. λf. f) {?136 {l}}) ((λ{e}. λf. f) {?139 {l}}) ((λ{e}. λf. f) {?142 {l}}) ((λ{e}. λf. f) {?145 {l}}) ((λ{e}. λf. f) {?148 {l}}) ((λ{e}. λf. f) {?151 {l}}) ((λ{e}. λf. f) {?154 {l}}) ((λ{e}. λf. f) {?157 {l}}) ((λ{e}. λf. f) {?160 {l}}) ((λ{e}. λf. f) {?163 {l}}) ((λ{e}. λf. f) {?166 {l}}) ((λ{e}. λf. f) {?169 {l}}) ((λ{e}. λf. f) {?172 {l}}) ((λ{e}. λf. f) {?175 {l}}) ((λ{e}. λf. f) {?178 {l}}) ((λ{e}. λf. f) {?181 {l}}) ((λ{e}. λf. f) {?184 {l}}) ((λ{e}. λf. f) {?187 {l}}) ((λ{e}. λf. f) {?190 {l}}) ((λ{e}. λf. f) {?193 {l}})
 
-example2 :: TopM m => Eff m (Doc ann)
+example2 :: TopM m => m (Doc ann)
 example2 = do
   xs <- sequence (freshLocal <$> ((T.pack . (:[]) <$> ['a'..'z']) ++ (T.pack . (:"'") <$> ['a'..'z'])))
   let fid = FunVar 53
@@ -140,14 +141,14 @@ example2 = do
         checkTop dhvnil
         checkTop dbvnil
         body <- (readFun fVec) <&> (^?! funCore . _Just . funBody . _Just . _1)
-        lift $ prettyTerm body) \(e :: CheckError) -> lift $ prettyCheckError e
+        purely $ prettyTerm body) \(e :: CheckError) -> purely $ prettyCheckError e
     _ -> undefined
 
 example2' :: (Either CheckError (Doc ann))
 {-# NOINLINE example2' #-}
 example2' = unsafePerformIO do
   globalR <- newIORef (Global IntMap.empty (IntMap.fromList [(53, (Fun "id" Nothing)), (54, (Fun "idTest" Nothing)), (55, (Fun "Nat" Nothing)), (56, (Fun "zero" Nothing)), (57, (Fun "suc" Nothing)), (58, (Fun "Vec" Nothing)), (59, (Fun "vnil" Nothing))]) IntMap.empty)
-  runM $ runError $ runStore $ evalFresh 0 $ runReader globalR example2
+  runExceptT $ evalStateT (runReaderT (example2 :: ReaderT (IORef Global) (StateT Int (ExceptT CheckError IO)) (Doc ann)) globalR) 0
 
 -- >>> example2'
 -- Right Π(t : Π(u : Nat[]) -> U) -> Π(v : t zero[]) -> Π(w : Π{x : ?258 {r} {s} {t} {v}} -> Π(y : r) -> Π(z : t x) -> t (suc[] x)) -> t s
@@ -160,7 +161,7 @@ vApp :: Val -> Val -> Val
 {-# INLINE vApp #-}
 vApp = vApply Explicit
 
-example3 :: (UnifyM m) => Eff m Term
+example3 :: TCM Term
 example3 = do
   let zero = vLam "s" \s -> vLam "z" \z -> z
   let suc = vLam "n" \n -> vLam "s" \s -> vLam "z" \z -> s `vApp` (n `vApp` s `vApp` z)
@@ -182,11 +183,11 @@ example3 = do
   let n5Mb = mul `vApp` n1Mb `vApp` five
   let n10M = mul `vApp` n1M `vApp` n10
   let n10Mb = mul `vApp` n1Mb `vApp` n10b
-  unify n10M n10Mb >>= \case
-    Nothing -> pure TU
-    Just _  -> pure (TLoc (Local 0))
-  -- m10 <- quoteE n10M
-  -- pure $ m10 `deepseq` m10
+  -- unify n10M n10Mb >>= \case
+  --   Nothing -> pure TU
+  --   Just _  -> pure (TLoc (Local 0))
+  m10 <- quoteE n10M
+  pure $ m10 `deepseq` m10
 
 deriving instance NFData a => NFData (Pr Licit a)
 deriving instance Generic Licit
@@ -203,7 +204,7 @@ deriving instance NFData Term
 example3' :: IO Term
 example3' = do
   globalR <- newIORef (Global IntMap.empty IntMap.empty IntMap.empty)
-  runM $ runStore $ evalFresh 0 $ runReader globalR example3
+  evalStateT (runReaderT example3 globalR) 0
 
 main :: IO ()
 main = do
@@ -214,7 +215,7 @@ main = do
 
 -- >>> example3'
 
--- example2 :: UnifyM m => Eff m Bool
+-- example2 :: UnifyM m => m Bool
 -- example2 =
 --   unify (VNeu (HMeta metavar) [] Nothing) VU
 --   where metavar = MetaVar 0
