@@ -5,18 +5,17 @@ import           Aqn.Common
 import           Aqn.Ref
 import           Aqn.Syntax
 import           Aqn.Value
-import           Control.Lens               (at, ix, (?~), (^?!))
-import           Control.Lens.TH            (makeLenses)
-import           Control.Monad.Freer        (Eff, Member, Members)
-import           Control.Monad.Freer.Fresh  (Fresh, fresh)
-import           Control.Monad.Freer.Reader (Reader, ask)
-import           Data.Function              ((&))
-import           Data.IORef                 (IORef)
-import           Data.IntMap.Strict         (IntMap)
-import           Data.Reflection            (Given (given), give)
-import           Data.Sequence              (Seq)
-import qualified Data.Text                  as T
-import           Data.Tsil                  (List)
+import           Control.Lens              (at, ix, (?~), (^?!))
+import           Control.Lens.TH           (makeLenses)
+import           Control.Monad.Freer       (Eff, Members)
+import           Control.Monad.Freer.Fresh (Fresh, fresh)
+import           Data.Function             ((&))
+import           Data.IORef                (IORef)
+import           Data.IntMap.Strict        (IntMap)
+import           Data.Reflection           (Given (given), give)
+import           Data.Sequence             (Seq)
+import qualified Data.Text                 as T
+import           Data.Tsil                 (List)
 
 data TopState
   = FoundClaim
@@ -64,16 +63,16 @@ data Global = Global
   }
 makeLenses ''Global
 
-type Write m = Members '[Reader (IORef Global), Store', Fresh] m
+type Write m = (Given (IORef Global), Members '[Store', Fresh] m)
 type Retrieve = Given Global
 
 readGlobal :: Write m => Eff m Global
-readGlobal = ask @(IORef Global) >>= readStore
+readGlobal = readStore (given :: IORef Global)
+{-# INLINE readGlobal #-}
 
 writeGlobal :: Write m => Global -> Eff m ()
-writeGlobal x = do
-  ref <- ask @(IORef Global)
-  writeStore ref x
+writeGlobal = writeStore (given :: IORef Global)
+{-# INLINE writeGlobal #-}
 
 lift :: Write m => (Retrieve => a) -> Eff m a
 lift f = do
@@ -86,7 +85,7 @@ getMeta (MetaVar r) = given ^?! (metas . ix r)
 
 readMeta :: (Write m, Reading 'Metas) => MetaVar -> Eff m Meta
 readMeta r = lift (getMeta r)
--- {-# INLINE readMeta #-}
+{-# INLINE readMeta #-}
 
 -- Do not apply eval/quote etc directly on this via fmap
 -- because that will use the OLD global environmet before the update
@@ -94,7 +93,6 @@ writeMeta :: (Write m, Writing 'Metas) => MetaVar -> Meta -> Eff m ()
 writeMeta (MetaVar r) x = do
   global <- readGlobal
   writeGlobal $ global & (metas . at r) ?~ x
--- {-# INLINE writeMeta #-}
 
 getFun :: (Retrieve, Reading 'Funs) => FunVar -> Fun
 getFun (FunVar r) = given ^?! (funs . ix r)
@@ -102,19 +100,17 @@ getFun (FunVar r) = given ^?! (funs . ix r)
 
 readFun :: (Write m, Reading 'Funs) => FunVar -> Eff m Fun
 readFun r = lift (getFun r)
--- {-# INLINE readFun #-}
+{-# INLINE readFun #-}
 
 writeFun :: (Write m, Writing 'Funs) => FunVar -> Fun -> Eff m ()
 writeFun (FunVar r) x = do
   global <- readGlobal
   writeGlobal $ global & (funs . at r) ?~ x
--- {-# INLINE writeFun #-}
 
 updateFun :: (Write m, Writing 'Funs) => FunVar -> (Fun -> Fun) -> Eff m ()
 updateFun r f = do
   fn <- readFun r
   writeFun r (f fn)
--- {-# INLINE updateFun #-}
 
 getLocal :: (Retrieve, Reading 'Locals) => Local -> LocalInfo
 getLocal (Local r) = given ^?! (locals . ix r)
@@ -122,16 +118,16 @@ getLocal (Local r) = given ^?! (locals . ix r)
 
 readLocal :: (Write m, Reading 'Locals) => Local -> Eff m LocalInfo
 readLocal r = lift (getLocal r)
--- {-# INLINE readLocal #-}
+{-# INLINE readLocal #-}
 
-freshLocal :: (Write m, Writing 'Locals, Member Fresh m) => Name -> Eff m Local
+freshLocal :: (Write m, Writing 'Locals) => Name -> Eff m Local
 freshLocal n = do
   i <- fresh
   global <- readGlobal
   writeGlobal $ global & (locals . at i) ?~ LocalInfo n
   pure $ Local i
 
-freshLocal' :: (Write m, Writing 'Locals, Members '[Fresh] m) => Eff m Local
+freshLocal' :: (Write m, Writing 'Locals) => Eff m Local
 freshLocal' = do
   i <- fresh
   global <- readGlobal

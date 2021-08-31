@@ -36,7 +36,6 @@ vApply l f x = case f of
   VLam _ _ clos     -> clos x
   VNeu hd elims val -> VNeu hd (elims :> EApp l x) (flip (vApply l) x <$> val)
   _                 -> error "Applying the wrong thing"
-{-# INLINE vApply #-}
 
 vApplyI, vApplyE :: Val -> Val -> Val
 vApplyI = vApply Implicit

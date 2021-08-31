@@ -28,11 +28,13 @@ type UnifyE m = Member (Error UnifyError) m
 unify :: UnifyM m => Val -> Val -> Eff m (Maybe UnifyError)
 unify l r =
   either (\(x :: UnifyError) -> Just x) (\() -> Nothing) <$> runError (unify' l r)
+{-# INLINE unify #-}
 
 unify' :: (UnifyM m, UnifyE m) => Val -> Val -> Eff m ()
 unify' l r = unifyShallow l r `catchError` \(_ :: UnifyError) -> do
   (x, y) <- lift (force l, force r)
   unifyShallow x y `catchError` \(_ :: UnifyError) -> unifyDeep x y
+{-# INLINE unify' #-}
 
 unifyShallow :: (UnifyM m, UnifyE m) => Val -> Val -> Eff m ()
 unifyShallow l r = do
@@ -51,6 +53,7 @@ unifyShallow l r = do
       unifyMany unifyArg args args'
       unifyMany unifyElim els els'
     _ -> throwError CantUnifyApprox
+{-# INLINE unifyShallow #-}
 
 unifyDeep :: (UnifyM m, UnifyE m) => Val -> Val -> Eff m ()
 unifyDeep l r = do
@@ -156,10 +159,6 @@ unifyArg (licit ::: arg) (licit' ::: arg') = do
   unless (licit == licit') $ throwError CantUnifyLicit
   unify' arg arg'
 {-# INLINE unifyArg #-}
-
--- unifySpine :: (UnifyM m, UnifyE m, Foldable f, MonadZip f) => f Elim -> f Elim -> Eff m ()
--- unifySpine l r = traverse_ (uncurry unifyElim) (mzip l r)
--- {-# INLINE unifySpine #-}
 
 unifyElim :: (UnifyM m, UnifyE m) => Elim -> Elim -> Eff m ()
 unifyElim l r = case (l, r) of

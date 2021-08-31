@@ -134,14 +134,12 @@ freshDomCod ctx n = do
   codMeta <- freshMeta (bound tyRef dom ctx) VU
   clos <- lift $ closure [] tyRef codMeta
   pure (dom, clos)
--- {-# INLINE freshDomCod #-}
 
 freshMeta :: (Write m, Writing 'Metas) => Ctx -> Val -> Eff m Term
 freshMeta ctx _ty = do
   metavar <- MetaVar <$> fresh
   writeMeta metavar (Meta (MetaCore Nothing))
   pure $ TMeta metavar `tApplyMany` fmap (\(r, _) -> Implicit ::: TLoc r) (ctx ^. ctxBoundTele)
--- {-# INLINE freshMeta #-}
 
 insert :: (Write m, Writing 'Metas, Reading 'Funs, Reading 'Locals) => NamedLicit -> Ctx -> Term -> Val -> Eff m (Maybe (Term, Val))
 insert licit ctx tm ty' = do

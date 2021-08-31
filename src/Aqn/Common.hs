@@ -1,13 +1,11 @@
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 module Aqn.Common where
 
-import           Control.Lens.Tuple        (Field1, Field2, Field3)
-import           Control.Monad.Freer       (Eff, LastMember, Member, interpretM, send, type (~>))
-import           Control.Monad.Freer.Error (Error, runError, throwError)
-import           Data.IORef                (IORef, newIORef, readIORef, writeIORef)
-import           Data.Maybe                (fromJust)
-import           Data.Text                 (Text)
-import           GHC.Generics              (Generic)
+import           Control.Lens.Tuple  (Field1, Field2, Field3)
+import           Control.Monad.Freer (Eff, LastMember, Member, interpretM, send, type (~>))
+import           Data.IORef          (IORef, newIORef, readIORef, writeIORef)
+import           Data.Text           (Text)
+import           GHC.Generics        (Generic)
 
 type Name = Text
 
@@ -35,6 +33,7 @@ runStore = interpretM \case
   NewStore x     -> newIORef x
   WriteStore r x -> writeIORef r x
   ReadStore r    -> readIORef r
+{-# INLINE runStore #-}
 
 data Kind
   = Locals
@@ -50,14 +49,6 @@ data Licit
   = Implicit
   | Explicit
   deriving (Eq, Show)
-
-onError :: Member (Error e2) m => Eff (Error e1 ': m) a -> (e1 -> e2) -> Eff m a
-onError m f = runError m >>= \case
-  Left e  -> throwError (f e)
-  Right x -> pure x
-
-(.!) :: Maybe a -> a
-(.!) = fromJust
 
 -- Strict pair.
 data Pr a b = (:::)
@@ -79,3 +70,4 @@ instance Field3 (Tp a b c) (Tp a b c') c c'
 
 uncurry' :: (a -> b -> c) -> Pr a b -> c
 uncurry' f (x ::: y) = f x y
+{-# INLINE uncurry' #-}
