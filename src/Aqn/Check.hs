@@ -2,10 +2,10 @@ module Aqn.Check where
 
 import           Aqn.Common
 import           Aqn.Eval
+import           Aqn.Global
 import           Aqn.Presyntax
 import           Aqn.Ref
 import           Aqn.Syntax
-import           Aqn.Top
 import           Aqn.Unify                 (unify)
 import           Aqn.Value
 import           Control.Lens              (makeLenses, (%~), (^.))
@@ -20,6 +20,7 @@ import           Data.Traversable          (for)
 import           Data.Tsil                 (List ((:>)))
 import qualified Data.Tsil                 as Tsil
 
+-- | Typechecking context, including current bound variables and defined variables.
 data Ctx = Ctx
   { _ctxTele      :: List (Local, Val)
   , _ctxBoundTele :: List (Local, Val)
@@ -27,24 +28,29 @@ data Ctx = Ctx
   }
 makeLenses ''Ctx
 
+-- | The top-level empty context.
 topCtx :: Ctx
 topCtx = Ctx [] [] []
 {-# INLINE topCtx #-}
 
+-- | Update the context to contain a new bound variable (e.g. in lambda).
 bound :: Local -> Val -> Ctx -> Ctx
 bound r v ctx = ctx & ctxTele %~ (:> (r, v)) & ctxBoundTele %~ (:> (r, v))
 {-# INLINE bound #-}
 
+-- | Update the context to contain a new defined variable (e.g. in let).
 defined :: Local -> Val -> Val -> Ctx -> Ctx
 defined r t v ctx = ctx & ctxTele %~ (:> (r, t)) & ctxEnv %~ (:> (r, v))
 {-# INLINE defined #-}
 
+-- | 'eval' that reads the environment from a 'Ctx'.
 eval' :: EvalM => Ctx -> Term -> Val
 eval' ctx = eval (ctx ^. ctxEnv)
 {-# INLINE eval' #-}
 
-type CheckM m = (Write m, Member (Error CheckError) m, Writing 'Locals, Writing 'Metas, Reading 'Funs)
+type CheckM m = (Impure m, Member (Error CheckError) m, Writing 'Locals, Writing 'Metas, Reading 'Funs)
 
+-- | Check a surface expression against a type, producing a core term.
 check :: CheckM m => Ctx -> Expr -> Val -> Eff m Term
 check ctx ex ty' = do
   ty <- lift $ force ty'
@@ -71,6 +77,7 @@ check ctx ex ty' = do
           err <- CantUnify reason ex <$> quoteE tyIn <*> quoteE ty
           throwError err
 
+-- | Infer the type of an expression.
 infer :: CheckM m => Ctx -> Expr -> Eff m (Term, Val)
 infer ctx ex = case ex of
   XTy x ty -> do
@@ -135,13 +142,15 @@ freshDomCod ctx n = do
   clos <- lift $ closure [] tyRef codMeta
   pure (dom, clos)
 
-freshMeta :: (Write m, Writing 'Metas) => Ctx -> Val -> Eff m Term
+freshMeta :: (Impure m, Writing 'Metas) => Ctx -> Val -> Eff m Term
 freshMeta ctx _ty = do
   metavar <- MetaVar <$> fresh
   writeMeta metavar (Meta (MetaCore Nothing))
   pure $ TMeta metavar `tApplyMany` fmap (\(r, _) -> Implicit ::: TLoc r) (ctx ^. ctxBoundTele)
 
-insert :: (Write m, Writing 'Metas, Reading 'Funs, Reading 'Locals) => NamedLicit -> Ctx -> Term -> Val -> Eff m (Maybe (Term, Val))
+-- | Insert implicit arguments by specification of 'NamedLicit'
+-- (no insert, insert until until a name, insert until explicit).
+insert :: (Impure m, Writing 'Metas, Reading 'Funs, Reading 'Locals) => NamedLicit -> Ctx -> Term -> Val -> Eff m (Maybe (Term, Val))
 insert licit ctx tm ty' = do
   ty <- lift $ force ty'
   case ty of
@@ -160,7 +169,7 @@ insert licit ctx tm ty' = do
 --   (ty, tm) <- infer' ctx ex
 --   lift' $ (ty, ) <$> finalizeCall tm
 
--- finalizeCall :: (Retrieve, Member Fresh m) => Term -> Eff m Term
+-- finalizeCall :: (Pure, Member Fresh m) => Term -> Eff m Term
 -- finalizeCall tm = case tm of
 --   TFun r xs | la < lp -> do
 --     args <- mapM (\(l, _, _) -> (l, ) <$> freshLocal) (Seq.take (lp - la) pars)
@@ -171,7 +180,7 @@ insert licit ctx tm ty' = do
 --       lp = length $ getFun r ^. funCore . funParams
 --   _ -> pure tm
 
--- tSmartApply :: Retrieve => Licit -> Term -> Term -> Term
+-- tSmartApply :: Pure => Licit -> Term -> Term -> Term
 -- tSmartApply l f x = case f of
 --   TFun r xs | Seq.length xs < lp -> TFun r ((l, x) <| xs)
 --     where lp = Seq.length $ getFun r ^. funCore . funParams

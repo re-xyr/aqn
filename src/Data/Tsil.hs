@@ -12,7 +12,7 @@ import qualified Data.Sequence       as Seq
 import           GHC.Exts            (IsList (Item, fromList, toList))
 
 -- | A list that appends instead of prepends elements.
--- It is strict in its length, but lazy in elements.
+-- It is strict in both its length and elements.
 data List a
   = Empty
   | List a :> a

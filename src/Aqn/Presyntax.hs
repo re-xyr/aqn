@@ -4,6 +4,7 @@ import           Aqn.Common
 import           Aqn.Ref
 import           Data.Sequence (Seq)
 
+-- | Surface expression before variable resolution.
 data Preexpr
   = XLam' Licit Name Preexpr
   | XPi' Licit Name Preexpr Preexpr
@@ -15,6 +16,7 @@ data Preexpr
   | XHole'
   deriving (Show)
 
+-- | Well-scoped surface expressions subject to typechecking.
 data Expr
   = XLam Licit Name Local Expr -- param licit, param name, param ref, body
   | XPi Licit Name Local Expr Expr -- dom licit, dom name, dom ref, dom ty, cod
@@ -27,6 +29,7 @@ data Expr
   | XHole --
   deriving (Show)
 
+-- | Specification of insertion in surface application syntax.
 data NamedLicit
   = ImplicitA
   | ImplicitN Name
@@ -47,14 +50,17 @@ matchNamedLicit nl l n = case nl of
   ExplicitA   -> l == Explicit
 {-# INLINE matchNamedLicit #-}
 
+-- | A program is a list of declarations.
 type Preprogram = [Predecl]
 
+-- | Surface declarations before variable resolution.
 data Predecl
   = DFunHead' (Either Name FunVar) (Seq (Licit, Name, Preexpr)) Preexpr
   | DFunBody' (Either Name FunVar) (Seq (Licit, Name)) Preexpr
   | DModule' Name [Predecl]
   deriving (Show)
 
+-- | Well-scoped surface declarations subject to typechecking.
 data Decl
   = DFunHead FunVar (Seq (Par Expr)) Expr
   | DFunBody FunVar (Seq Bind) Expr
