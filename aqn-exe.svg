@@ -1,6 +1,6 @@
 <?xml version="1.0" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg version="1.1" width="1200" height="342" onload="init(evt)" viewBox="0 0 1200 342" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<svg version="1.1" width="1200" height="358" onload="init(evt)" viewBox="0 0 1200 358" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
 <!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
 <!-- NOTES:  -->
 <defs >
@@ -329,130 +329,86 @@
 	}
 ]]>
 </script>
-<rect x="0.0" y="0" width="1200.0" height="342.0" fill="url(#background)"  />
+<rect x="0.0" y="0" width="1200.0" height="358.0" fill="url(#background)"  />
 <text text-anchor="middle" x="600.00" y="24" font-size="17" font-family="Verdana" fill="rgb(0,0,0)"  >Flame Graph</text>
-<text text-anchor="" x="10.00" y="325" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="details" > </text>
+<text text-anchor="" x="10.00" y="341" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="details" > </text>
 <text text-anchor="" x="10.00" y="24" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="unzoom" onclick="unzoom()" style="opacity:0.0;cursor:pointer" >Reset Zoom</text>
 <text text-anchor="" x="1090.00" y="24" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="search" onmouseover="searchover()" onmouseout="searchout()" onclick="search_prompt()" style="opacity:0.1;cursor:pointer" >Search</text>
-<text text-anchor="" x="1090.00" y="325" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="matched" > </text>
+<text text-anchor="" x="1090.00" y="341" font-size="12" font-family="Verdana" fill="rgb(0,0,0)" id="matched" > </text>
 <g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3' (1,000 samples, 99.90%)</title><rect x="11.2" y="245" width="1178.8" height="15.0" fill="rgb(240,63,52)" rx="2" ry="2" />
-<text text-anchor="" x="14.18" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example3'</text>
+<title>Main.example3.mul (25 samples, 2.50%)</title><rect x="1160.5" y="181" width="29.5" height="15.0" fill="rgb(237,41,28)" rx="2" ry="2" />
+<text text-anchor="" x="1163.50" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Ma..</text>
 </g>
 <g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3.suc (103 samples, 10.29%)</title><rect x="1068.6" y="85" width="121.4" height="15.0" fill="rgb(223,31,42)" rx="2" ry="2" />
-<text text-anchor="" x="1071.58" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example3.suc</text>
+<title>Main.example3.n10M (25 samples, 2.50%)</title><rect x="1160.5" y="197" width="29.5" height="15.0" fill="rgb(240,196,49)" rx="2" ry="2" />
+<text text-anchor="" x="1163.50" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Ma..</text>
 </g>
 <g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3.mul.\.\.\.\ (89 samples, 8.89%)</title><rect x="960.1" y="117" width="104.9" height="15.0" fill="rgb(240,84,5)" rx="2" ry="2" />
-<text text-anchor="" x="963.13" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example..</text>
+<title>Main.example3.mul.\ (25 samples, 2.50%)</title><rect x="1160.5" y="165" width="29.5" height="15.0" fill="rgb(229,186,23)" rx="2" ry="2" />
+<text text-anchor="" x="1163.50" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Ma..</text>
 </g>
 <g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.main (1,000 samples, 99.90%)</title><rect x="11.2" y="261" width="1178.8" height="15.0" fill="rgb(220,137,48)" rx="2" ry="2" />
-<text text-anchor="" x="14.18" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.main</text>
+<title>Main.example3' (1,000 samples, 100.00%)</title><rect x="10.0" y="261" width="1180.0" height="15.0" fill="rgb(228,39,38)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="271.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example3'</text>
 </g>
 <g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3.suc.\.\ (103 samples, 10.29%)</title><rect x="1068.6" y="53" width="121.4" height="15.0" fill="rgb(237,11,54)" rx="2" ry="2" />
-<text text-anchor="" x="1071.58" y="63.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example3.s..</text>
+<title>Aqn.Eval.quoteElims (506 samples, 50.60%)</title><rect x="563.4" y="197" width="597.1" height="15.0" fill="rgb(246,122,32)" rx="2" ry="2" />
+<text text-anchor="" x="566.42" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Aqn.Eval.quoteElims</text>
 </g>
 <g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3.suc.\.\.\ (79 samples, 7.89%)</title><rect x="971.9" y="37" width="93.1" height="15.0" fill="rgb(231,175,42)" rx="2" ry="2" />
-<text text-anchor="" x="974.92" y="47.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.exampl..</text>
+<title>Main.example3 (1,000 samples, 100.00%)</title><rect x="10.0" y="245" width="1180.0" height="15.0" fill="rgb(253,208,44)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="255.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example3</text>
 </g>
 <g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3.suc.\.\.\ (90 samples, 8.99%)</title><rect x="1083.9" y="37" width="106.1" height="15.0" fill="rgb(233,106,45)" rx="2" ry="2" />
-<text text-anchor="" x="1086.91" y="47.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example..</text>
+<title>Main.main (1,000 samples, 100.00%)</title><rect x="10.0" y="277" width="1180.0" height="15.0" fill="rgb(210,193,20)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.main</text>
 </g>
 <g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3.suc.\ (103 samples, 10.29%)</title><rect x="1068.6" y="69" width="121.4" height="15.0" fill="rgb(244,222,30)" rx="2" ry="2" />
-<text text-anchor="" x="1071.58" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example3.s..</text>
+<title>Main.example3.suc.\ (24 samples, 2.40%)</title><rect x="1161.7" y="69" width="28.3" height="15.0" fill="rgb(205,195,39)" rx="2" ry="2" />
+<text text-anchor="" x="1164.68" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Ma..</text>
 </g>
 <g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Aqn.Ref.== (30 samples, 3.00%)</title><rect x="922.4" y="181" width="35.4" height="15.0" fill="rgb(254,134,19)" rx="2" ry="2" />
-<text text-anchor="" x="925.41" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Aq..</text>
+<title>Main.example3.suc.\.\ (24 samples, 2.40%)</title><rect x="1161.7" y="53" width="28.3" height="15.0" fill="rgb(254,58,35)" rx="2" ry="2" />
+<text text-anchor="" x="1164.68" y="63.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Ma..</text>
 </g>
 <g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3.mul.\.\.\.\ (105 samples, 10.49%)</title><rect x="1066.2" y="117" width="123.8" height="15.0" fill="rgb(251,74,36)" rx="2" ry="2" />
-<text text-anchor="" x="1069.22" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example3.m..</text>
+<title>MAIN.MAIN (1,000 samples, 100.00%)</title><rect x="10.0" y="293" width="1180.0" height="15.0" fill="rgb(206,144,18)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >MAIN.MAIN</text>
 </g>
 <g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3.mul.\.\.\ (106 samples, 10.59%)</title><rect x="1065.0" y="133" width="125.0" height="15.0" fill="rgb(234,100,33)" rx="2" ry="2" />
-<text text-anchor="" x="1068.04" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example3.m..</text>
+<title>Main.example3.two (24 samples, 2.40%)</title><rect x="1161.7" y="101" width="28.3" height="15.0" fill="rgb(249,63,36)" rx="2" ry="2" />
+<text text-anchor="" x="1164.68" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Ma..</text>
 </g>
 <g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3.suc.\ (88 samples, 8.79%)</title><rect x="961.3" y="69" width="103.7" height="15.0" fill="rgb(239,7,39)" rx="2" ry="2" />
-<text text-anchor="" x="964.31" y="79.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example..</text>
+<title>Main.example3.suc (24 samples, 2.40%)</title><rect x="1161.7" y="85" width="28.3" height="15.0" fill="rgb(214,87,41)" rx="2" ry="2" />
+<text text-anchor="" x="1164.68" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Ma..</text>
 </g>
 <g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3.mul (91 samples, 9.09%)</title><rect x="957.8" y="181" width="107.2" height="15.0" fill="rgb(253,47,3)" rx="2" ry="2" />
-<text text-anchor="" x="960.77" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example3..</text>
+<title>all (1,000 samples, 100%)</title><rect x="10.0" y="309" width="1180.0" height="15.0" fill="rgb(252,66,42)" rx="2" ry="2" />
+<text text-anchor="" x="13.00" y="319.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
 </g>
 <g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3.mul.\.\ (106 samples, 10.59%)</title><rect x="1065.0" y="149" width="125.0" height="15.0" fill="rgb(249,168,17)" rx="2" ry="2" />
-<text text-anchor="" x="1068.04" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example3.m..</text>
+<title>Main.example3.mul.\.\.\ (25 samples, 2.50%)</title><rect x="1160.5" y="133" width="29.5" height="15.0" fill="rgb(243,42,17)" rx="2" ry="2" />
+<text text-anchor="" x="1163.50" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Ma..</text>
 </g>
 <g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3.mul.\.\.\ (91 samples, 9.09%)</title><rect x="957.8" y="133" width="107.2" height="15.0" fill="rgb(240,92,43)" rx="2" ry="2" />
-<text text-anchor="" x="960.77" y="143.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example3..</text>
+<title>Main.example3.suc.\.\.\ (21 samples, 2.10%)</title><rect x="1165.2" y="37" width="24.8" height="15.0" fill="rgb(206,159,45)" rx="2" ry="2" />
+<text text-anchor="" x="1168.22" y="47.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >M..</text>
 </g>
 <g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3.suc (88 samples, 8.79%)</title><rect x="961.3" y="85" width="103.7" height="15.0" fill="rgb(205,31,39)" rx="2" ry="2" />
-<text text-anchor="" x="964.31" y="95.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example..</text>
+<title>Main.example3.mul.\.\ (25 samples, 2.50%)</title><rect x="1160.5" y="149" width="29.5" height="15.0" fill="rgb(207,176,20)" rx="2" ry="2" />
+<text text-anchor="" x="1163.50" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Ma..</text>
 </g>
 <g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>all (1,001 samples, 100%)</title><rect x="10.0" y="293" width="1180.0" height="15.0" fill="rgb(226,154,10)" rx="2" ry="2" />
-<text text-anchor="" x="13.00" y="303.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  ></text>
+<title>Data.Reflection.give (594 samples, 59.40%)</title><rect x="489.1" y="229" width="700.9" height="15.0" fill="rgb(208,2,18)" rx="2" ry="2" />
+<text text-anchor="" x="492.08" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Data.Reflection.give</text>
 </g>
 <g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3 (1,000 samples, 99.90%)</title><rect x="11.2" y="229" width="1178.8" height="15.0" fill="rgb(240,186,8)" rx="2" ry="2" />
-<text text-anchor="" x="14.18" y="239.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example3</text>
+<title>Main.example3.mul.\.\.\.\ (25 samples, 2.50%)</title><rect x="1160.5" y="117" width="29.5" height="15.0" fill="rgb(212,167,8)" rx="2" ry="2" />
+<text text-anchor="" x="1163.50" y="127.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Ma..</text>
 </g>
 <g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3.mul (106 samples, 10.59%)</title><rect x="1065.0" y="181" width="125.0" height="15.0" fill="rgb(250,16,22)" rx="2" ry="2" />
-<text text-anchor="" x="1068.04" y="191.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example3.mul</text>
-</g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3.five (103 samples, 10.29%)</title><rect x="1068.6" y="101" width="121.4" height="15.0" fill="rgb(218,75,46)" rx="2" ry="2" />
-<text text-anchor="" x="1071.58" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example3.f..</text>
-</g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Aqn.Unify.unifyMany (803 samples, 80.22%)</title><rect x="11.2" y="197" width="946.6" height="15.0" fill="rgb(230,162,21)" rx="2" ry="2" />
-<text text-anchor="" x="14.18" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Aqn.Unify.unifyMany</text>
-</g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>MAIN.MAIN (1,001 samples, 100.00%)</title><rect x="10.0" y="277" width="1180.0" height="15.0" fill="rgb(217,187,23)" rx="2" ry="2" />
-<text text-anchor="" x="13.00" y="287.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >MAIN.MAIN</text>
-</g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3.two (88 samples, 8.79%)</title><rect x="961.3" y="101" width="103.7" height="15.0" fill="rgb(236,202,14)" rx="2" ry="2" />
-<text text-anchor="" x="964.31" y="111.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example..</text>
-</g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3.n10Mb (106 samples, 10.59%)</title><rect x="1065.0" y="197" width="125.0" height="15.0" fill="rgb(214,34,2)" rx="2" ry="2" />
-<text text-anchor="" x="1068.04" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example3.n..</text>
-</g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Aqn.Unify.unifyDeep (1,000 samples, 99.90%)</title><rect x="11.2" y="213" width="1178.8" height="15.0" fill="rgb(232,214,48)" rx="2" ry="2" />
-<text text-anchor="" x="14.18" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Aqn.Unify.unifyDeep</text>
-</g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3.n10M (91 samples, 9.09%)</title><rect x="957.8" y="197" width="107.2" height="15.0" fill="rgb(236,180,45)" rx="2" ry="2" />
-<text text-anchor="" x="960.77" y="207.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example3..</text>
-</g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3.mul.\ (91 samples, 9.09%)</title><rect x="957.8" y="165" width="107.2" height="15.0" fill="rgb(213,121,33)" rx="2" ry="2" />
-<text text-anchor="" x="960.77" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example3..</text>
-</g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3.mul.\.\ (91 samples, 9.09%)</title><rect x="957.8" y="149" width="107.2" height="15.0" fill="rgb(210,132,10)" rx="2" ry="2" />
-<text text-anchor="" x="960.77" y="159.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example3..</text>
-</g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3.suc.\.\ (88 samples, 8.79%)</title><rect x="961.3" y="53" width="103.7" height="15.0" fill="rgb(211,15,15)" rx="2" ry="2" />
-<text text-anchor="" x="964.31" y="63.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example..</text>
-</g>
-<g class="func_g" onmouseover="s(this)" onmouseout="c()" onclick="zoom(this)">
-<title>Main.example3.mul.\ (106 samples, 10.59%)</title><rect x="1065.0" y="165" width="125.0" height="15.0" fill="rgb(213,216,5)" rx="2" ry="2" />
-<text text-anchor="" x="1068.04" y="175.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Main.example3.m..</text>
+<title>Aqn.Eval.quote (594 samples, 59.40%)</title><rect x="489.1" y="213" width="700.9" height="15.0" fill="rgb(243,169,53)" rx="2" ry="2" />
+<text text-anchor="" x="492.08" y="223.5" font-size="12" font-family="Verdana" fill="rgb(0,0,0)"  >Aqn.Eval.quote</text>
 </g>
 </svg>

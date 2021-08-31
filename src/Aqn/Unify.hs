@@ -83,7 +83,6 @@ unifyDeep l r = do
     (_, VNeu (HMeta _) _ Nothing) -> unify' r l
 
     _ -> throwError DontKnowHowToUnify
-{-# INLINABLE unifyDeep #-}
 
 solveMeta :: (UnifyM m, UnifyE m) => MetaVar -> List Elim -> Val -> m ()
 solveMeta ref els sln = do
@@ -154,7 +153,6 @@ unifyMany f (xs :> x) (ys :> y) = do
   unifyMany f xs ys
   f x y
 unifyMany _ _ _ = throwError DifferentSpineLength
-{-# INLINABLE unifyMany #-}
 
 unifyArg :: (UnifyM m, UnifyE m) => Arg Val -> Arg Val -> m ()
 unifyArg (licit ::: arg) (licit' ::: arg') = do

@@ -69,7 +69,6 @@ quote val = case val of
     | given == Unfold, Just x <- pre -> quote x
     | otherwise -> quoteHd hd >>= flip quoteElims els
   VU -> pure TU
-{-# INLINABLE quote #-}
 
 quoteHd :: (QuoteM m, Given Unfold) => Head -> m Term
 quoteHd hd = case hd of
@@ -83,7 +82,6 @@ quoteElims t Tsil.Empty = pure t
 quoteElims t (xs :> x) = do
   t' <- quoteElim t x
   quoteElims t' xs
-{-# INLINABLE quoteElims #-}
 
 quoteElim :: (QuoteM m, Given Unfold) => Term -> Elim -> m Term
 quoteElim tm elim = case elim of
