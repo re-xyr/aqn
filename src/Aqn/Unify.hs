@@ -28,13 +28,13 @@ type UnifyE m = MonadError UnifyError m
 unify :: UnifyM m => Val -> Val -> m (Maybe UnifyError)
 unify l r =
   either (\(x :: UnifyError) -> Just x) (\() -> Nothing) <$> runExceptT (unify' l r)
-{-# SPECIALIZE unify :: (Writing 'Locals, Writing 'Metas, Reading 'Funs) => Val -> Val -> TCM (Maybe UnifyError) #-}
+{-# INLINE unify #-}
 
 unify' :: (UnifyM m, UnifyE m) => Val -> Val -> m ()
 unify' l r = unifyShallow l r `catchError` \(_ :: UnifyError) -> do
   (x, y) <- purely (force l, force r)
   unifyShallow x y `catchError` \(_ :: UnifyError) -> unifyDeep x y
-{-# SPECIALIZE unify' :: (Writing 'Locals, Writing 'Metas, Reading 'Funs) => Val -> Val -> ExceptT UnifyError TCM () #-}
+{-# INLINE unify' #-}
 
 unifyShallow :: (UnifyM m, UnifyE m) => Val -> Val -> m ()
 unifyShallow l r = do
@@ -53,7 +53,7 @@ unifyShallow l r = do
       unifyMany unifyArg args args'
       unifyMany unifyElim els els'
     _ -> throwError CantUnifyApprox
-{-# SPECIALIZE unifyShallow :: (Writing 'Locals, Writing 'Metas, Reading 'Funs) => Val -> Val -> ExceptT UnifyError TCM () #-}
+{-# INLINE unifyShallow #-}
 
 unifyDeep :: (UnifyM m, UnifyE m) => Val -> Val -> m ()
 unifyDeep l r = do
@@ -83,7 +83,7 @@ unifyDeep l r = do
     (_, VNeu (HMeta _) _ Nothing) -> unify' r l
 
     _ -> throwError DontKnowHowToUnify
-{-# SPECIALIZE unifyDeep :: (Writing 'Locals, Writing 'Metas, Reading 'Funs) => Val -> Val -> ExceptT UnifyError TCM () #-}
+{-# INLINABLE unifyDeep #-}
 
 solveMeta :: (UnifyM m, UnifyE m) => MetaVar -> List Elim -> Val -> m ()
 solveMeta ref els sln = do
@@ -116,7 +116,6 @@ solveMeta ref els sln = do
     allDistinct set (xs :> (_ ::: x))
       | x `elem` set = Nothing
       | otherwise = allDistinct (Set.insert x set) xs
-{-# SPECIALIZE solveMeta :: (Writing 'Locals, Writing 'Metas, Reading 'Funs) => MetaVar -> List Elim -> Val -> ExceptT UnifyError TCM () #-}
 
 type SolveM m = (M m, Writing 'Locals, Reading 'Metas, Reading 'Funs)
 
@@ -143,13 +142,11 @@ wellScoped self refs vl' = do
           TFun f . Tsil.toSeq <$> traverse (traverse (wellScoped self refs)) args
       foldlM (wellScopedElim self refs) hd' els'
     VU -> pure TU
-{-# SPECIALIZE wellScoped :: (Writing 'Locals, Reading 'Metas, Reading 'Funs) => MetaVar -> Map Local Local -> Val -> ExceptT UnifyError TCM Term #-}
 
 wellScopedElim :: (SolveM m, UnifyE m) => MetaVar -> Map Local Local -> Term -> Elim -> m Term
 wellScopedElim self refs tm el = case el of
   EApp li val -> TApp li tm <$> wellScoped self refs val
 {-# INLINE wellScopedElim #-}
-{-# SPECIALIZE wellScopedElim :: (Writing 'Locals, Reading 'Metas, Reading 'Funs) => MetaVar -> Map Local Local -> Term -> Elim -> ExceptT UnifyError TCM Term #-}
 
 unifyMany :: (UnifyM m, UnifyE m) => (a -> a -> m ()) -> List a -> List a -> m ()
 unifyMany _ Tsil.Empty Tsil.Empty = pure ()
@@ -157,14 +154,13 @@ unifyMany f (xs :> x) (ys :> y) = do
   unifyMany f xs ys
   f x y
 unifyMany _ _ _ = throwError DifferentSpineLength
-{-# SPECIALIZE unifyMany :: (Writing 'Locals, Writing 'Metas, Reading 'Funs) => (a -> a -> ExceptT UnifyError TCM ()) -> List a -> List a -> ExceptT UnifyError TCM () #-}
+{-# INLINABLE unifyMany #-}
 
 unifyArg :: (UnifyM m, UnifyE m) => Arg Val -> Arg Val -> m ()
 unifyArg (licit ::: arg) (licit' ::: arg') = do
   unless (licit == licit') $ throwError CantUnifyLicit
   unify' arg arg'
 {-# INLINE unifyArg #-}
-{-# SPECIALIZE unifyArg :: (Writing 'Locals, Writing 'Metas, Reading 'Funs) => Arg Val -> Arg Val -> ExceptT UnifyError TCM () #-}
 -- unifySpine :: (UnifyM m, UnifyE m, Foldable f, MonadZip f) => f Elim -> f Elim -> m ()
 -- unifySpine l r = traverse_ (uncurry unifyElim) (mzip l r)
 -- {-# INLINE unifySpine #-}
@@ -174,4 +170,3 @@ unifyElim l r = case (l, r) of
   (EApp licit arg, EApp licit' arg') ->
     unifyArg (licit ::: arg) (licit' ::: arg')
 {-# INLINE unifyElim #-}
-{-# SPECIALIZE unifyElim :: (Writing 'Locals, Writing 'Metas, Reading 'Funs) => Elim -> Elim -> ExceptT UnifyError TCM () #-}

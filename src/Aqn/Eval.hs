@@ -53,7 +53,6 @@ quoteE v = give Enfold $ quote v
 {-# INLINE quoteE #-}
 quoteU v = give Unfold $ quote v
 {-# INLINE quoteU #-}
-{-# SPECIALIZE quoteE :: (Writing 'Locals, Reading 'Metas, Reading 'Funs) => Val -> TCM Term #-}
 
 quote :: (QuoteM m, Given Unfold) => Val -> m Term
 quote val = case val of
@@ -70,7 +69,7 @@ quote val = case val of
     | given == Unfold, Just x <- pre -> quote x
     | otherwise -> quoteHd hd >>= flip quoteElims els
   VU -> pure TU
-{-# SPECIALIZE quote :: (Writing 'Locals, Reading 'Metas, Reading 'Funs, Given Unfold) => Val -> TCM Term #-}
+{-# INLINABLE quote #-}
 
 quoteHd :: (QuoteM m, Given Unfold) => Head -> m Term
 quoteHd hd = case hd of
@@ -78,20 +77,18 @@ quoteHd hd = case hd of
   HMeta ref     -> pure $ TMeta ref
   HFun ref args -> TFun ref . Seq.fromList . toList <$> traverse (traverse quote) args
 {-# INLINE quoteHd #-}
-{-# SPECIALIZE quoteHd :: (Writing 'Locals, Reading 'Metas, Reading 'Funs, Given Unfold) => Head -> TCM Term #-}
 
 quoteElims :: (QuoteM m, Given Unfold) => Term -> List Elim -> m Term
 quoteElims t Tsil.Empty = pure t
 quoteElims t (xs :> x) = do
   t' <- quoteElim t x
   quoteElims t' xs
-{-# SPECIALIZE quoteElims :: (Writing 'Locals, Reading 'Metas, Reading 'Funs, Given Unfold) => Term -> List Elim -> TCM Term #-}
+{-# INLINABLE quoteElims #-}
 
 quoteElim :: (QuoteM m, Given Unfold) => Term -> Elim -> m Term
 quoteElim tm elim = case elim of
   EApp l val -> TApp l tm <$> quote val
 {-# INLINE quoteElim #-}
-{-# SPECIALIZE quoteElim :: (Writing 'Locals, Reading 'Metas, Reading 'Funs, Given Unfold) => Term -> Elim -> TCM Term #-}
 
 type ForceM = (Retrieve, Reading 'Metas, Reading 'Funs)
 

@@ -183,11 +183,12 @@ example3 = do
   let n5Mb = mul `vApp` n1Mb `vApp` five
   let n10M = mul `vApp` n1M `vApp` n10
   let n10Mb = mul `vApp` n1Mb `vApp` n10b
-  -- unify n10M n10Mb >>= \case
-  --   Nothing -> pure TU
-  --   Just _  -> pure (TLoc (Local 0))
-  m10 <- quoteE n10M
-  pure $ m10 `deepseq` m10
+  unify n10M n10Mb >>= \case
+    Nothing -> pure TU
+    Just _  -> pure (TLoc (Local 0))
+  -- m10 <- quoteE n10M
+  -- pure $ m10 `deepseq` m10
+{-# INLINABLE example3 #-}
 
 deriving instance NFData a => NFData (Pr Licit a)
 deriving instance Generic Licit
