@@ -1,9 +1,9 @@
 module Aqn.Eval where
 
 import           Aqn.Common
+import           Aqn.Global
 import           Aqn.Ref
 import           Aqn.Syntax
-import           Aqn.Top
 import           Aqn.Value
 import           Control.Lens        (_2, _Just, previews, (^?))
 import           Control.Monad.Freer (Eff)
@@ -16,10 +16,12 @@ import qualified Data.Sequence       as Seq
 import           Data.Tsil           (List ((:>)))
 import qualified Data.Tsil           as Tsil
 
+-- | The evaluation environment that corresponds 'Local' variables to 'Val' values.
 type Env = List (Local, Val)
 
-type EvalM = (Retrieve, Reading 'Metas, Reading 'Funs)
+type EvalM = (Pure, Reading 'Metas, Reading 'Funs)
 
+-- | Evaluates a core 'Term' into a beta-normal semantic value 'Val'.
 eval :: EvalM => Env -> Term -> Val
 eval env tm = case tm of
   TLam l n x m  -> VLam l n (closure env x m)
@@ -47,11 +49,15 @@ data Unfold
   | Enfold
   deriving (Show, Eq)
 
-type QuoteM m = (Write m, Writing 'Locals, Reading 'Metas, Reading 'Funs)
+type QuoteM m = (Impure m, Writing 'Locals, Reading 'Metas, Reading 'Funs)
 
-quoteE, quoteU :: QuoteM m => Val -> Eff m Term
+-- | Quote a 'Val' back into a syntactic 'Term' in beta-normal form.
+quoteE :: QuoteM m => Val -> Eff m Term
 quoteE v = give Enfold $ quote v
 {-# INLINE quoteE #-}
+
+-- | Quote a 'Val' back into a syntactic 'Term' in beta-delta-normal form.
+quoteU :: QuoteM m => Val -> Eff m Term
 quoteU v = give Unfold $ quote v
 {-# INLINE quoteU #-}
 
@@ -89,7 +95,7 @@ quoteElim tm elim = case elim of
   EApp l val -> TApp l tm <$> quote val
 {-# INLINE quoteElim #-}
 
-type ForceM = (Retrieve, Reading 'Metas, Reading 'Funs)
+type ForceM = (Pure, Reading 'Metas, Reading 'Funs)
 
 forceMaybe :: ForceM => Val -> Maybe Val
 forceMaybe val = case val of

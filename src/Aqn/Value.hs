@@ -5,17 +5,20 @@ import           Aqn.Ref
 import           Data.Foldable (Foldable (foldl'))
 import           Data.Tsil     (List ((:>)))
 
+-- | Semantic values of core syntax.
 data Val
   = VPi Licit Name Val (Val -> Val)
   | VLam Licit Name (Val -> Val)
   | VNeu Head (List Elim) (Maybe Val)
   | VU
 
+-- | Heads of neutral values.
 data Head
   = HLoc Local
   | HMeta MetaVar
   | HFun FunVar (List (Arg Val))
 
+-- | Eliminations on neutral values.
 data Elim
   = EApp Licit Val
 

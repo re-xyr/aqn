@@ -1,24 +1,24 @@
-module Aqn.Prettyprint where
+module Aqn.Pretty where
 
 import           Aqn.Common
+import           Aqn.Global
 import           Aqn.Presyntax
 import           Aqn.Ref
 import           Aqn.Syntax
-import           Aqn.Top
 import           Aqn.Value
 import           Control.Lens  ((^.))
 import           Data.Foldable (toList)
 import           Prettyprinter
 
-type PpM = (Retrieve, Reading 'Locals, Reading 'Funs)
+type PpM = (Pure, Reading 'Locals, Reading 'Funs)
 
-prettyLocal :: (Retrieve, Reading 'Locals) => Local -> Doc ann
+prettyLocal :: (Pure, Reading 'Locals) => Local -> Doc ann
 prettyLocal lo = pretty $ getLocal lo ^. localName
 
-prettyFunVar :: (Retrieve, Reading 'Funs) => FunVar -> Doc ann
+prettyFunVar :: (Pure, Reading 'Funs) => FunVar -> Doc ann
 prettyFunVar fv = pretty $ getFun fv ^. funName
 
-prettyDefVar :: (Retrieve, Reading 'Funs) => DefVar -> Doc ann
+prettyDefVar :: (Pure, Reading 'Funs) => DefVar -> Doc ann
 prettyDefVar dv = case dv of
   DVFun fv -> prettyFunVar fv
 

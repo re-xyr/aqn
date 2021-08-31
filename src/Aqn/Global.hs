@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
-module Aqn.Top where
+module Aqn.Global where
 
 import           Aqn.Common
 import           Aqn.Ref
@@ -9,20 +9,13 @@ import           Control.Lens              (at, ix, (?~), (^?!))
 import           Control.Lens.TH           (makeLenses)
 import           Control.Monad.Freer       (Eff, Members)
 import           Control.Monad.Freer.Fresh (Fresh, fresh)
+import           Control.Monad.Freer.State (State, get, put)
 import           Data.Function             ((&))
-import           Data.IORef                (IORef)
 import           Data.IntMap.Strict        (IntMap)
 import           Data.Reflection           (Given (given), give)
 import           Data.Sequence             (Seq)
 import qualified Data.Text                 as T
 import           Data.Tsil                 (List)
-
-data TopState
-  = FoundClaim
-  | FoundDefinition
-  | Claimed
-  | Defined
-  deriving (Show, Eq)
 
 newtype MetaCore = MetaCore
   { _metaBody    :: Maybe (Pr Term Val)
@@ -54,8 +47,7 @@ newtype LocalInfo = LocalInfo
   }
 makeLenses ''LocalInfo
 
-{- REFERENCES -}
-
+-- | The global environment.
 data Global = Global
   { _metas  :: IntMap Meta
   , _funs   :: IntMap Fun
@@ -63,73 +55,85 @@ data Global = Global
   }
 makeLenses ''Global
 
-type Write m = (Given (IORef Global), Members '[Store', Fresh] m)
-type Retrieve = Given Global
+-- | An impure operation that may or may not manipulate global environment.
+-- Note that this should be seen as opaque.
+type Impure m = (Members '[State Global, Fresh] m)
 
-readGlobal :: Write m => Eff m Global
-readGlobal = readStore (given :: IORef Global)
-{-# INLINE readGlobal #-}
+-- | A pure operation that can only read the global environment.
+-- Note that this should be seen as opaque.
+type Pure = Given Global
 
-writeGlobal :: Write m => Global -> Eff m ()
-writeGlobal = writeStore (given :: IORef Global)
-{-# INLINE writeGlobal #-}
+-- | Kinds of global data that are used to parameterize capabilities.
+data Kind
+  = Locals
+  | Metas
+  | Funs
+  deriving (Show, Eq)
 
-lift :: Write m => (Retrieve => a) -> Eff m a
+-- | Capability of writing a certain kind of global data.
+class Writing (a :: Kind)
+
+-- | Capability of reading a certain kind of global data.
+class Reading (a :: Kind)
+instance Writing a => Reading a
+
+-- Lift a pure action into the impure domain.
+lift :: Impure m => (Pure => a) -> Eff m a
 lift f = do
-  global <- readGlobal
+  global <- get @Global
   pure $ give global f
 
-getMeta :: (Retrieve, Reading 'Metas) => MetaVar -> Meta
+getMeta :: (Pure, Reading 'Metas) => MetaVar -> Meta
 getMeta (MetaVar r) = given ^?! (metas . ix r)
 {-# INLINE getMeta #-}
 
-readMeta :: (Write m, Reading 'Metas) => MetaVar -> Eff m Meta
+readMeta :: (Impure m, Reading 'Metas) => MetaVar -> Eff m Meta
 readMeta r = lift (getMeta r)
 {-# INLINE readMeta #-}
 
 -- Do not apply eval/quote etc directly on this via fmap
 -- because that will use the OLD global environmet before the update
-writeMeta :: (Write m, Writing 'Metas) => MetaVar -> Meta -> Eff m ()
+writeMeta :: (Impure m, Writing 'Metas) => MetaVar -> Meta -> Eff m ()
 writeMeta (MetaVar r) x = do
-  global <- readGlobal
-  writeGlobal $ global & (metas . at r) ?~ x
+  global <- get
+  put $ global & (metas . at r) ?~ x
 
-getFun :: (Retrieve, Reading 'Funs) => FunVar -> Fun
+getFun :: (Pure, Reading 'Funs) => FunVar -> Fun
 getFun (FunVar r) = given ^?! (funs . ix r)
 {-# INLINE getFun #-}
 
-readFun :: (Write m, Reading 'Funs) => FunVar -> Eff m Fun
+readFun :: (Impure m, Reading 'Funs) => FunVar -> Eff m Fun
 readFun r = lift (getFun r)
 {-# INLINE readFun #-}
 
-writeFun :: (Write m, Writing 'Funs) => FunVar -> Fun -> Eff m ()
+writeFun :: (Impure m, Writing 'Funs) => FunVar -> Fun -> Eff m ()
 writeFun (FunVar r) x = do
-  global <- readGlobal
-  writeGlobal $ global & (funs . at r) ?~ x
+  global <- get
+  put $ global & (funs . at r) ?~ x
 
-updateFun :: (Write m, Writing 'Funs) => FunVar -> (Fun -> Fun) -> Eff m ()
+updateFun :: (Impure m, Writing 'Funs) => FunVar -> (Fun -> Fun) -> Eff m ()
 updateFun r f = do
   fn <- readFun r
   writeFun r (f fn)
 
-getLocal :: (Retrieve, Reading 'Locals) => Local -> LocalInfo
+getLocal :: (Pure, Reading 'Locals) => Local -> LocalInfo
 getLocal (Local r) = given ^?! (locals . ix r)
 {-# INLINE getLocal #-}
 
-readLocal :: (Write m, Reading 'Locals) => Local -> Eff m LocalInfo
+readLocal :: (Impure m, Reading 'Locals) => Local -> Eff m LocalInfo
 readLocal r = lift (getLocal r)
 {-# INLINE readLocal #-}
 
-freshLocal :: (Write m, Writing 'Locals) => Name -> Eff m Local
+freshLocal :: (Impure m, Writing 'Locals) => Name -> Eff m Local
 freshLocal n = do
   i <- fresh
-  global <- readGlobal
-  writeGlobal $ global & (locals . at i) ?~ LocalInfo n
+  global <- get
+  put $ global & (locals . at i) ?~ LocalInfo n
   pure $ Local i
 
-freshLocal' :: (Write m, Writing 'Locals) => Eff m Local
+freshLocal' :: (Impure m, Writing 'Locals) => Eff m Local
 freshLocal' = do
   i <- fresh
-  global <- readGlobal
-  writeGlobal $ global & (locals . at i) ?~ LocalInfo (T.pack $ show i)
+  global <- get
+  put $ global & (locals . at i) ?~ LocalInfo (T.pack $ show i)
   pure $ Local i

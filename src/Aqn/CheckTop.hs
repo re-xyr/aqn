@@ -3,10 +3,10 @@ module Aqn.CheckTop where
 import           Aqn.Check
 import           Aqn.Common
 import           Aqn.Eval
+import           Aqn.Global
 import           Aqn.Presyntax
 import           Aqn.Ref
 import           Aqn.Syntax
-import           Aqn.Top
 import           Aqn.Value
 import           Control.Lens              (_Just, (?~), (^.), (^?!))
 import           Control.Monad.Extra       (fromMaybeM)
@@ -18,8 +18,9 @@ import           Data.Sequence             (Seq ((:<|)), (<|))
 import qualified Data.Sequence             as Seq
 import qualified Data.Tsil                 as Tsil
 
-type TopM m = (Write m, Writing 'Funs, Writing 'Metas, Writing 'Locals, Member (Error CheckError) m)
+type TopM m = (Impure m, Writing 'Funs, Writing 'Metas, Writing 'Locals, Member (Error CheckError) m)
 
+-- | Check a top-level declaration and put it into global environment.
 checkTop :: TopM m => Decl -> Eff m ()
 checkTop m = case m of
   DFunHead fv params ret -> do

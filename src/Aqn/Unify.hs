@@ -2,10 +2,10 @@ module Aqn.Unify where
 
 import           Aqn.Common
 import           Aqn.Eval
-import           Aqn.Prettyprint
+import           Aqn.Global
+import           Aqn.Pretty
 import           Aqn.Ref
 import           Aqn.Syntax
-import           Aqn.Top
 import           Aqn.Value
 import           Control.Lens              ((?~), (^.))
 import           Control.Monad             (unless)
@@ -22,9 +22,10 @@ import           Data.Tsil                 (List (Empty, (:>)))
 import qualified Data.Tsil                 as Tsil
 import qualified Debug.Trace               as Debug
 
-type UnifyM m = (Write m, Writing 'Locals, Writing 'Metas, Reading 'Funs)
+type UnifyM m = (Impure m, Writing 'Locals, Writing 'Metas, Reading 'Funs)
 type UnifyE m = Member (Error UnifyError) m
 
+-- | Unify two semantic values, solving metavariables if possible. This is untyped syntactic unification.
 unify :: UnifyM m => Val -> Val -> Eff m (Maybe UnifyError)
 unify l r =
   either (\(x :: UnifyError) -> Just x) (\() -> Nothing) <$> runError (unify' l r)
@@ -116,7 +117,7 @@ solveMeta ref els sln = do
       | x `elem` set = Nothing
       | otherwise = allDistinct (Set.insert x set) xs
 
-type SolveM m = (Write m, Writing 'Locals, Reading 'Metas, Reading 'Funs)
+type SolveM m = (Impure m, Writing 'Locals, Reading 'Metas, Reading 'Funs)
 
 wellScoped :: (SolveM m, UnifyE m) => MetaVar -> Map Local Local -> Val -> Eff m Term
 wellScoped self refs vl' = do
