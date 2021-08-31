@@ -5,16 +5,16 @@ import           Aqn.Global
 import           Aqn.Ref
 import           Aqn.Syntax
 import           Aqn.Value
-import           Control.Lens        (_2, _Just, previews, (^?))
-import           Control.Monad.Freer (Eff)
-import           Data.Foldable       (Foldable (toList))
-import           Data.Function       ((&))
-import           Data.Maybe          (fromMaybe)
-import           Data.Reflection     (Given (given), give)
-import           Data.Sequence       (Seq ((:<|)))
-import qualified Data.Sequence       as Seq
-import           Data.Tsil           (List ((:>)))
-import qualified Data.Tsil           as Tsil
+import           Control.Lens    (_2, _Just, previews, (^?))
+import           Data.Foldable   (Foldable (toList))
+import           Data.Function   ((&))
+import           Data.Maybe      (fromMaybe)
+import           Data.Reflection (Given (given), give)
+import           Data.Sequence   (Seq ((:<|)))
+import qualified Data.Sequence   as Seq
+import           Data.Tsil       (List ((:>)))
+import qualified Data.Tsil       as Tsil
+import           Effectful.Monad (Eff)
 
 -- | The evaluation environment that corresponds 'Local' variables to 'Val' values.
 type Env = List (Local, Val)

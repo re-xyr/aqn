@@ -6,19 +6,18 @@ import           Aqn.Global
 import           Aqn.Presyntax
 import           Aqn.Ref
 import           Aqn.Syntax
-import           Aqn.Unify                 (unify)
+import           Aqn.Unify           (unify)
 import           Aqn.Value
-import           Control.Lens              (makeLenses, (%~), (^.))
-import           Control.Monad.Extra       (fromMaybeM)
-import           Control.Monad.Freer       (Eff, Member)
-import           Control.Monad.Freer.Error (Error, throwError)
-import           Control.Monad.Freer.Fresh (fresh)
-import           Data.Function             ((&))
-import           Data.Functor              ((<&>))
-import           Data.Maybe                (fromJust, fromMaybe)
-import           Data.Traversable          (for)
-import           Data.Tsil                 (List ((:>)))
-import qualified Data.Tsil                 as Tsil
+import           Control.Lens        (makeLenses, (%~), (^.))
+import           Control.Monad.Extra (fromMaybeM)
+import           Data.Function       ((&))
+import           Data.Functor        ((<&>))
+import           Data.Maybe          (fromJust, fromMaybe)
+import           Data.Traversable    (for)
+import           Data.Tsil           (List ((:>)))
+import qualified Data.Tsil           as Tsil
+import           Effectful.Error     (Error, throwError)
+import           Effectful.Monad     (Eff, type (:>))
 
 -- | Typechecking context, including current bound variables and defined variables.
 data Ctx = Ctx
@@ -48,7 +47,7 @@ eval' :: EvalM => Ctx -> Term -> Val
 eval' ctx = eval (ctx ^. ctxEnv)
 {-# INLINE eval' #-}
 
-type CheckM m = (Impure m, Member (Error CheckError) m, Writing 'Locals, Writing 'Metas, Reading 'Funs)
+type CheckM m = (Impure m, Error CheckError :> m, Writing 'Locals, Writing 'Metas, Reading 'Funs)
 
 -- | Check a surface expression against a type, producing a core term.
 check :: CheckM m => Ctx -> Expr -> Val -> Eff m Term

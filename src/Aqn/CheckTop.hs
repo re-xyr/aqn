@@ -8,17 +8,17 @@ import           Aqn.Presyntax
 import           Aqn.Ref
 import           Aqn.Syntax
 import           Aqn.Value
-import           Control.Lens              (_Just, (?~), (^.), (^?!))
-import           Control.Monad.Extra       (fromMaybeM)
-import           Control.Monad.Freer       (Eff, Member)
-import           Control.Monad.Freer.Error (Error, catchError, throwError)
-import           Data.Function             ((&))
-import           Data.Functor              ((<&>))
-import           Data.Sequence             (Seq ((:<|)), (<|))
-import qualified Data.Sequence             as Seq
-import qualified Data.Tsil                 as Tsil
+import           Control.Lens        (_Just, (?~), (^.), (^?!))
+import           Control.Monad.Extra (fromMaybeM)
+import           Data.Function       ((&))
+import           Data.Functor        ((<&>))
+import           Data.Sequence       (Seq ((:<|)), (<|))
+import qualified Data.Sequence       as Seq
+import qualified Data.Tsil           as Tsil
+import           Effectful.Error     (Error, catchError, throwError)
+import           Effectful.Monad     (Eff, type (:>))
 
-type TopM m = (Impure m, Writing 'Funs, Writing 'Metas, Writing 'Locals, Member (Error CheckError) m)
+type TopM m = (Impure m, Writing 'Funs, Writing 'Metas, Writing 'Locals, Error CheckError :> m)
 
 -- | Check a top-level declaration and put it into global environment.
 checkTop :: TopM m => Decl -> Eff m ()
@@ -29,7 +29,7 @@ checkTop m = case m of
     tele <- lift $ evalTele [] paramsT retT
     updateFun fv (\f -> f & funCore ?~ FunCore paramsT retT tele (teleToTy tele) Nothing)
   DFunBody fv params body -> do
-    let fakeup = checkTop (fakeFunHead fv params) `catchError` \(_ :: CheckError) -> throwError $ NotSuccessfullyClaimed m (DVFun fv)
+    let fakeup = checkTop (fakeFunHead fv params) `catchError` \_ (_ :: CheckError) -> throwError $ NotSuccessfullyClaimed m (DVFun fv)
     fun <- fromMaybeM (fakeup *> (readFun fv <&> (^?! funCore . _Just))) (readFun fv <&> (^. funCore))
     (ctx, ret) <- teleToCtx topCtx (fun ^. funParams) (fun ^. funTele) params
     bodyT <- check ctx body ret

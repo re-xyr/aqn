@@ -3,7 +3,20 @@
 # For more information, please see the documentation at:
 #   https://docs.haskellstack.org/en/stable/lock_files
 
-packages: []
+packages:
+- completed:
+    subdir: effectful-core
+    name: effectful-core
+    version: '0.1'
+    git: https://github.com/arybczak/effectful
+    pantry-tree:
+      size: 1519
+      sha256: c8aac7a605723418a65a55d676644419736efe6aa80920bf23384d00fa7dcd54
+    commit: 7527aa4440ea22fe4bf14e44fa25a291c23ec46a
+  original:
+    subdir: effectful-core
+    git: https://github.com/arybczak/effectful
+    commit: 7527aa4440ea22fe4bf14e44fa25a291c23ec46a
 snapshots:
 - completed:
     size: 587113

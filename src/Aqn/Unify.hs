@@ -7,34 +7,34 @@ import           Aqn.Pretty
 import           Aqn.Ref
 import           Aqn.Syntax
 import           Aqn.Value
-import           Control.Lens              ((?~), (^.))
-import           Control.Monad             (unless)
-import           Control.Monad.Extra       (fromMaybeM)
-import           Control.Monad.Freer       (Eff, Member)
-import           Control.Monad.Freer.Error (Error, catchError, runError, throwError)
-import           Data.Foldable             (Foldable (toList), foldlM)
-import           Data.Function             ((&))
-import           Data.Map.Strict           (Map)
-import qualified Data.Map.Strict           as Map
-import qualified Data.Set                  as Set
-import           Data.Traversable          (for)
-import           Data.Tsil                 (List (Empty, (:>)))
-import qualified Data.Tsil                 as Tsil
-import qualified Debug.Trace               as Debug
+import           Control.Lens        ((?~), (^.))
+import           Control.Monad       (unless)
+import           Control.Monad.Extra (fromMaybeM)
+import           Data.Foldable       (Foldable (toList), foldlM)
+import           Data.Function       ((&))
+import           Data.Map.Strict     (Map)
+import qualified Data.Map.Strict     as Map
+import qualified Data.Set            as Set
+import           Data.Traversable    (for)
+import           Data.Tsil           (List (Empty, (:>)))
+import qualified Data.Tsil           as Tsil
+import qualified Debug.Trace         as Debug
+import           Effectful.Error     (Error, catchError, runError, throwError)
+import           Effectful.Monad     (Eff, type (:>))
 
 type UnifyM m = (Impure m, Writing 'Locals, Writing 'Metas, Reading 'Funs)
-type UnifyE m = Member (Error UnifyError) m
+type UnifyE m = Error UnifyError :> m
 
 -- | Unify two semantic values, solving metavariables if possible. This is untyped syntactic unification.
 unify :: UnifyM m => Val -> Val -> Eff m (Maybe UnifyError)
 unify l r =
-  either (\(x :: UnifyError) -> Just x) (\() -> Nothing) <$> runError (unify' l r)
+  either (\(_, x :: UnifyError) -> Just x) (\() -> Nothing) <$> runError (unify' l r)
 {-# INLINE unify #-}
 
 unify' :: (UnifyM m, UnifyE m) => Val -> Val -> Eff m ()
-unify' l r = unifyShallow l r `catchError` \(_ :: UnifyError) -> do
+unify' l r = unifyShallow l r `catchError` \_ (_ :: UnifyError) -> do
   (x, y) <- lift (force l, force r)
-  unifyShallow x y `catchError` \(_ :: UnifyError) -> unifyDeep x y
+  unifyShallow x y `catchError` \_ (_ :: UnifyError) -> unifyDeep x y
 {-# INLINE unify' #-}
 
 unifyShallow :: (UnifyM m, UnifyE m) => Val -> Val -> Eff m ()
@@ -78,7 +78,7 @@ unifyDeep l r = do
 
     (VNeu (HMeta ref) els Nothing, VNeu (HMeta ref') els' Nothing) ->
       -- This is a temporary solution; use intersection in the future
-      solveMeta ref els r `catchError` \(_ :: UnifyError) -> solveMeta ref' els' l
+      solveMeta ref els r `catchError` \_ (_ :: UnifyError) -> solveMeta ref' els' l
     (VNeu (HMeta ref) els Nothing, _) ->
       solveMeta ref els r
     (_, VNeu (HMeta _) _ Nothing) -> unify' r l
