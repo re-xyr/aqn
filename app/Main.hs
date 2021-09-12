@@ -10,28 +10,27 @@ import           Aqn.Presyntax
 import           Aqn.Pretty
 import           Aqn.Ref
 import           Aqn.Syntax
-import           Aqn.Unify                  (UnifyM, unify)
+import           Aqn.Unify            (UnifyM, unify)
 import           Aqn.Value
-import           Control.DeepSeq            (NFData, deepseq)
-import           Control.Lens               (_1, _Just, (^?!))
-import           Control.Monad              (replicateM, replicateM_)
-import           Control.Monad.ST           (stToIO)
-import           Data.Functor               ((<&>))
-import           Data.IORef                 (newIORef)
-import qualified Data.IntMap.Strict         as IntMap
-import           Data.Reflection            (give)
-import qualified Data.Text                  as T
-import           Data.Time.Clock            (diffUTCTime, getCurrentTime)
-import           GHC.Generics               (Generic, Generic1)
-import           GHC.IO                     (unsafePerformIO)
-import           Prettyprinter              (Doc)
-import Availability.Error (catchError, Thrower, Catcher)
-import Availability.Getter (Getter)
-import Availability.Putter (Putter)
-import Availability.Fresh (Fresh)
-import Availability (runUnderlying)
-import Data.Function ((&))
+import           Availability         (runUnderlying)
+import           Availability.Error   (Catcher, Thrower, catchError)
+import           Availability.Fresh   (Fresh)
+import           Availability.State   (Getter, Putter)
+import           Control.DeepSeq      (NFData, deepseq)
+import           Control.Lens         (_1, _Just, (^?!))
+import           Control.Monad        (replicateM, replicateM_)
 import qualified Control.Monad.Reader as MTL
+import           Control.Monad.ST     (stToIO)
+import           Data.Function        ((&))
+import           Data.Functor         ((<&>))
+import           Data.IORef           (newIORef)
+import qualified Data.IntMap.Strict   as IntMap
+import           Data.Reflection      (give)
+import qualified Data.Text            as T
+import           Data.Time.Clock      (diffUTCTime, getCurrentTime)
+import           GHC.Generics         (Generic, Generic1)
+import           GHC.IO               (unsafePerformIO)
+import           Prettyprinter        (Doc)
 
 eLam :: Name -> Local -> Expr -> Expr
 eLam = XLam Explicit
@@ -98,7 +97,7 @@ example1' :: Doc ann
 {-# NOINLINE example1' #-}
 example1' = unsafePerformIO do
   ref <- newIORef $ Global IntMap.empty IntMap.empty IntMap.empty 0
-  runUnderlying @'[Getter () Global, Putter () Global, Fresh 1, Thrower CheckError, Catcher CheckError] example1 & (`MTL.runReaderT` ref)
+  runUnderlying @'[Getter () Global, Putter () Global, Fresh, Thrower CheckError, Catcher CheckError] example1 & (`MTL.runReaderT` ref)
 
 -- >>> example1'
 -- Right λ{l}. (λ{e}. λf. f) {?27 {l}} ((λ{e}. λf. f) {?28 {l}}) ((λ{e}. λf. f) {?31 {l}}) ((λ{e}. λf. f) {?34 {l}}) ((λ{e}. λf. f) {?37 {l}}) ((λ{e}. λf. f) {?40 {l}}) ((λ{e}. λf. f) {?43 {l}}) ((λ{e}. λf. f) {?46 {l}}) ((λ{e}. λf. f) {?49 {l}}) ((λ{e}. λf. f) {?52 {l}}) ((λ{e}. λf. f) {?55 {l}}) ((λ{e}. λf. f) {?58 {l}}) ((λ{e}. λf. f) {?61 {l}}) ((λ{e}. λf. f) {?64 {l}}) ((λ{e}. λf. f) {?67 {l}}) ((λ{e}. λf. f) {?70 {l}}) ((λ{e}. λf. f) {?73 {l}}) ((λ{e}. λf. f) {?76 {l}}) ((λ{e}. λf. f) {?79 {l}}) ((λ{e}. λf. f) {?82 {l}}) ((λ{e}. λf. f) {?85 {l}}) ((λ{e}. λf. f) {?88 {l}}) ((λ{e}. λf. f) {?91 {l}}) ((λ{e}. λf. f) {?94 {l}}) ((λ{e}. λf. f) {?97 {l}}) ((λ{e}. λf. f) {?100 {l}}) ((λ{e}. λf. f) {?103 {l}}) ((λ{e}. λf. f) {?106 {l}}) ((λ{e}. λf. f) {?109 {l}}) ((λ{e}. λf. f) {?112 {l}}) ((λ{e}. λf. f) {?115 {l}}) ((λ{e}. λf. f) {?118 {l}}) ((λ{e}. λf. f) {?121 {l}}) ((λ{e}. λf. f) {?124 {l}}) ((λ{e}. λf. f) {?127 {l}}) ((λ{e}. λf. f) {?130 {l}}) ((λ{e}. λf. f) {?133 {l}}) ((λ{e}. λf. f) {?136 {l}}) ((λ{e}. λf. f) {?139 {l}}) ((λ{e}. λf. f) {?142 {l}}) ((λ{e}. λf. f) {?145 {l}}) ((λ{e}. λf. f) {?148 {l}}) ((λ{e}. λf. f) {?151 {l}}) ((λ{e}. λf. f) {?154 {l}}) ((λ{e}. λf. f) {?157 {l}}) ((λ{e}. λf. f) {?160 {l}}) ((λ{e}. λf. f) {?163 {l}}) ((λ{e}. λf. f) {?166 {l}}) ((λ{e}. λf. f) {?169 {l}}) ((λ{e}. λf. f) {?172 {l}}) ((λ{e}. λf. f) {?175 {l}}) ((λ{e}. λf. f) {?178 {l}}) ((λ{e}. λf. f) {?181 {l}}) ((λ{e}. λf. f) {?184 {l}}) ((λ{e}. λf. f) {?187 {l}}) ((λ{e}. λf. f) {?190 {l}}) ((λ{e}. λf. f) {?193 {l}})
@@ -152,7 +151,7 @@ example2' :: Doc ann
 {-# NOINLINE example2' #-}
 example2' = unsafePerformIO do
   ref <- newIORef $ Global IntMap.empty (IntMap.fromList [(53, (Fun "id" Nothing)), (54, (Fun "idTest" Nothing)), (55, (Fun "Nat" Nothing)), (56, (Fun "zero" Nothing)), (57, (Fun "suc" Nothing)), (58, (Fun "Vec" Nothing)), (59, (Fun "vnil" Nothing))]) IntMap.empty 0
-  runUnderlying @'[Getter () Global, Putter () Global, Fresh 1, Thrower CheckError, Catcher CheckError] example2 & (`MTL.runReaderT` ref)
+  runUnderlying @'[Getter () Global, Putter () Global, Fresh, Thrower CheckError, Catcher CheckError] example2 & (`MTL.runReaderT` ref)
 
 -- >>> example2'
 -- Right Π(t : Π(u : Nat[]) -> U) -> Π(v : t zero[]) -> Π(w : Π{x : ?258 {r} {s} {t} {v}} -> Π(y : r) -> Π(z : t x) -> t (suc[] x)) -> t s
@@ -208,7 +207,7 @@ deriving instance NFData Term
 example3' :: IO Term
 example3' = do
   ref <- newIORef $ Global IntMap.empty IntMap.empty IntMap.empty 0
-  runUnderlying @'[Getter () Global, Putter () Global, Fresh 1] example3 & (`MTL.runReaderT` ref)
+  runUnderlying @'[Getter () Global, Putter () Global, Fresh] example3 & (`MTL.runReaderT` ref)
 
 main :: IO ()
 main = do

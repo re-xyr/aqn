@@ -9,8 +9,7 @@ import           Aqn.Ref
 import           Aqn.Syntax
 import           Aqn.Value
 import           Availability        (Effs)
-import           Availability.Error  (Catcher, Thrower, catchError, makeEffViaMonadCatch, makeEffViaMonadThrow,
-                                      runError, throwError)
+import           Availability.Error  (Catcher, Thrower, catchError, runError, throwError)
 import           Control.Lens        ((?~), (^.))
 import           Control.Monad       (unless)
 import           Control.Monad.Extra (fromMaybeM)
@@ -26,9 +25,6 @@ import qualified Debug.Trace         as Debug
 
 type UnifyM = (Impure, Writing 'Locals, Writing 'Metas, Reading 'Funs)
 type UnifyE = Effs '[Thrower UnifyError, Catcher UnifyError]
-
-makeEffViaMonadThrow [t| UnifyError |] [t| TC |]
-makeEffViaMonadCatch [t| UnifyError |] [t| TC |]
 
 -- | Unify two semantic values, solving metavariables if possible. This is untyped syntactic unification.
 unify :: UnifyM => Val -> Val -> TCM (Maybe UnifyError)

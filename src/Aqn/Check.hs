@@ -10,7 +10,7 @@ import           Aqn.Syntax
 import           Aqn.Unify           (unify)
 import           Aqn.Value
 import           Availability        (Eff)
-import           Availability.Error  (Thrower, makeEffViaMonadCatch, makeEffViaMonadThrow, throwError)
+import           Availability.Error  (Thrower, throwError)
 import           Availability.Fresh  (fresh)
 import           Control.Lens        (makeLenses, (%~), (^.))
 import           Control.Monad.Extra (fromMaybeM)
@@ -20,9 +20,6 @@ import           Data.Maybe          (fromJust, fromMaybe)
 import           Data.Traversable    (for)
 import           Data.Tsil           (List ((:>)))
 import qualified Data.Tsil           as Tsil
-
-makeEffViaMonadThrow [t| CheckError |] [t| TC |]
-makeEffViaMonadCatch [t| CheckError |] [t| TC |]
 
 -- | Typechecking context, including current bound variables and defined variables.
 data Ctx = Ctx
@@ -148,7 +145,7 @@ freshDomCod ctx n = do
 
 freshMeta :: (Impure, Writing 'Metas) => Ctx -> Val -> TCM Term
 freshMeta ctx _ty = do
-  metavar <- MetaVar <$> fresh @1
+  metavar <- MetaVar <$> fresh
   writeMeta metavar (Meta (MetaCore Nothing))
   pure $ TMeta metavar `tApplyMany` fmap (\(r, _) -> Implicit ::: TLoc r) (ctx ^. ctxBoundTele)
 

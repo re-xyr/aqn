@@ -6,7 +6,8 @@ import           Aqn.Ref
 import           Aqn.Syntax
 import           Aqn.Value
 import           Availability.Embed   (makeEffViaMonadIO)
-import           Availability.Fresh   (Fresh, fresh)
+import           Availability.Error   (makeEffViaMonadCatch, makeEffViaMonadThrow)
+import           Availability.Fresh   (Fresh, fresh, makeFreshByState)
 import           Availability.Impl    (Effs, M)
 import           Availability.Reader  (makeEffViaMonadReader)
 import           Availability.State   (Getter, Putter, get, makeStateByIORef, makeStateFromLens, put)
@@ -14,7 +15,7 @@ import           Control.Lens         (at, ix, (?~), (^?!))
 import           Control.Lens.TH      (makeLenses)
 import qualified Control.Monad.Reader as MTL
 import           Data.Function        ((&))
-import           Data.IORef           (IORef, readIORef, writeIORef)
+import           Data.IORef           (IORef)
 import           Data.IntMap.Strict   (IntMap)
 import           Data.Reflection      (Given (given), give)
 import           Data.Sequence        (Seq)
@@ -62,7 +63,7 @@ makeLenses ''Global
 
 -- | An impure operation that may or may not manipulate global environment.
 -- Note that this should be seen as opaque.
-type Impure = (Effs '[Getter () Global, Putter () Global, Fresh 1])
+type Impure = (Effs '[Getter () Global, Putter () Global, Fresh])
 
 -- | A pure operation that can only read the global environment.
 -- Note that this should be seen as opaque.
@@ -89,6 +90,9 @@ makeEffViaMonadReader [t| "impl" |] [t| IORef Global |] [t| TC |]
 makeEffViaMonadIO [t| TC |]
 makeStateByIORef [t| () |] [t| Global |] [t| "impl" |] [t| TC |]
 makeStateFromLens [t| 1 |] [t| Int |] [t| () |] [t| Global |] [| counter |] [t| TC |]
+makeFreshByState [t| 1 |] [t| TC |]
+makeEffViaMonadThrow [t| TC |]
+makeEffViaMonadCatch [t| TC |]
 
 -- Lift a pure action into the impure domain.
 lift :: Impure => (Pure => a) -> TCM a
@@ -139,14 +143,14 @@ readLocal r = lift (getLocal r)
 
 freshLocal :: (Impure, Writing 'Locals) => Name -> TCM Local
 freshLocal n = do
-  i <- fresh @1
+  i <- fresh
   global <- get @()
   put @() $ global & (locals . at i) ?~ LocalInfo n
   pure $ Local i
 
 freshLocal' :: (Impure, Writing 'Locals) => TCM Local
 freshLocal' = do
-  i <- fresh @1
+  i <- fresh
   global <- get @()
   put @() $ global & (locals . at i) ?~ LocalInfo (T.pack $ show i)
   pure $ Local i
