@@ -23,6 +23,7 @@ dependencies:
 - freer-simple
 - lens
 - containers
+- availability
 - extra
 - prettyprinter
 - strict
@@ -32,6 +33,7 @@ dependencies:
 - time
 - deepseq
 - reflection
+- mtl
 
 library:
   source-dirs: src

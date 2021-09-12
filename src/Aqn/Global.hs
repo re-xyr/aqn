@@ -5,17 +5,21 @@ import           Aqn.Common
 import           Aqn.Ref
 import           Aqn.Syntax
 import           Aqn.Value
-import           Control.Lens              (at, ix, (?~), (^?!))
-import           Control.Lens.TH           (makeLenses)
-import           Control.Monad.Freer       (Eff, Members)
-import           Control.Monad.Freer.Fresh (Fresh, fresh)
-import           Control.Monad.Freer.State (State, get, put)
-import           Data.Function             ((&))
-import           Data.IntMap.Strict        (IntMap)
-import           Data.Reflection           (Given (given), give)
-import           Data.Sequence             (Seq)
-import qualified Data.Text                 as T
-import           Data.Tsil                 (List)
+import           Availability.Embed   (makeEffViaMonadIO)
+import           Availability.Fresh   (Fresh, fresh)
+import           Availability.Impl    (Effs, M)
+import           Availability.Reader  (makeEffViaMonadReader)
+import           Availability.State   (Getter, Putter, get, makeStateByIORef, makeStateFromLens, put)
+import           Control.Lens         (at, ix, (?~), (^?!))
+import           Control.Lens.TH      (makeLenses)
+import qualified Control.Monad.Reader as MTL
+import           Data.Function        ((&))
+import           Data.IORef           (IORef, readIORef, writeIORef)
+import           Data.IntMap.Strict   (IntMap)
+import           Data.Reflection      (Given (given), give)
+import           Data.Sequence        (Seq)
+import qualified Data.Text            as T
+import           Data.Tsil            (List)
 
 newtype MetaCore = MetaCore
   { _metaBody    :: Maybe (Pr Term Val)
@@ -49,15 +53,16 @@ makeLenses ''LocalInfo
 
 -- | The global environment.
 data Global = Global
-  { _metas  :: IntMap Meta
-  , _funs   :: IntMap Fun
-  , _locals :: IntMap LocalInfo
+  { _metas   :: IntMap Meta
+  , _funs    :: IntMap Fun
+  , _locals  :: IntMap LocalInfo
+  , _counter :: Int
   }
 makeLenses ''Global
 
 -- | An impure operation that may or may not manipulate global environment.
 -- Note that this should be seen as opaque.
-type Impure m = (Members '[State Global, Fresh] m)
+type Impure = (Effs '[Getter () Global, Putter () Global, Fresh 1])
 
 -- | A pure operation that can only read the global environment.
 -- Note that this should be seen as opaque.
@@ -77,41 +82,49 @@ class Writing (a :: Kind)
 class Reading (a :: Kind)
 instance Writing a => Reading a
 
+type TC = MTL.ReaderT (IORef Global) IO
+type TCM = M TC
+
+makeEffViaMonadReader [t| "impl" |] [t| IORef Global |] [t| TC |]
+makeEffViaMonadIO [t| TC |]
+makeStateByIORef [t| () |] [t| Global |] [t| "impl" |] [t| TC |]
+makeStateFromLens [t| 1 |] [t| Int |] [t| () |] [t| Global |] [| counter |] [t| TC |]
+
 -- Lift a pure action into the impure domain.
-lift :: Impure m => (Pure => a) -> Eff m a
+lift :: Impure => (Pure => a) -> TCM a
 lift f = do
-  global <- get @Global
-  pure $ give global f
+  global <- get @()
+  pure $ give (global :: Global) f
 
 getMeta :: (Pure, Reading 'Metas) => MetaVar -> Meta
 getMeta (MetaVar r) = given ^?! (metas . ix r)
 {-# INLINE getMeta #-}
 
-readMeta :: (Impure m, Reading 'Metas) => MetaVar -> Eff m Meta
+readMeta :: (Impure, Reading 'Metas) => MetaVar -> TCM Meta
 readMeta r = lift (getMeta r)
 {-# INLINE readMeta #-}
 
 -- Do not apply eval/quote etc directly on this via fmap
 -- because that will use the OLD global environmet before the update
-writeMeta :: (Impure m, Writing 'Metas) => MetaVar -> Meta -> Eff m ()
+writeMeta :: (Impure, Writing 'Metas) => MetaVar -> Meta -> TCM ()
 writeMeta (MetaVar r) x = do
-  global <- get
-  put $ global & (metas . at r) ?~ x
+  global <- get @()
+  put @() $ global & (metas . at r) ?~ x
 
 getFun :: (Pure, Reading 'Funs) => FunVar -> Fun
 getFun (FunVar r) = given ^?! (funs . ix r)
 {-# INLINE getFun #-}
 
-readFun :: (Impure m, Reading 'Funs) => FunVar -> Eff m Fun
+readFun :: (Impure, Reading 'Funs) => FunVar -> TCM Fun
 readFun r = lift (getFun r)
 {-# INLINE readFun #-}
 
-writeFun :: (Impure m, Writing 'Funs) => FunVar -> Fun -> Eff m ()
+writeFun :: (Impure, Writing 'Funs) => FunVar -> Fun -> TCM ()
 writeFun (FunVar r) x = do
-  global <- get
-  put $ global & (funs . at r) ?~ x
+  global <- get @()
+  put @() $ global & (funs . at r) ?~ x
 
-updateFun :: (Impure m, Writing 'Funs) => FunVar -> (Fun -> Fun) -> Eff m ()
+updateFun :: (Impure, Writing 'Funs) => FunVar -> (Fun -> Fun) -> TCM ()
 updateFun r f = do
   fn <- readFun r
   writeFun r (f fn)
@@ -120,20 +133,20 @@ getLocal :: (Pure, Reading 'Locals) => Local -> LocalInfo
 getLocal (Local r) = given ^?! (locals . ix r)
 {-# INLINE getLocal #-}
 
-readLocal :: (Impure m, Reading 'Locals) => Local -> Eff m LocalInfo
+readLocal :: (Impure, Reading 'Locals) => Local -> TCM LocalInfo
 readLocal r = lift (getLocal r)
 {-# INLINE readLocal #-}
 
-freshLocal :: (Impure m, Writing 'Locals) => Name -> Eff m Local
+freshLocal :: (Impure, Writing 'Locals) => Name -> TCM Local
 freshLocal n = do
-  i <- fresh
-  global <- get
-  put $ global & (locals . at i) ?~ LocalInfo n
+  i <- fresh @1
+  global <- get @()
+  put @() $ global & (locals . at i) ?~ LocalInfo n
   pure $ Local i
 
-freshLocal' :: (Impure m, Writing 'Locals) => Eff m Local
+freshLocal' :: (Impure, Writing 'Locals) => TCM Local
 freshLocal' = do
-  i <- fresh
-  global <- get
-  put $ global & (locals . at i) ?~ LocalInfo (T.pack $ show i)
+  i <- fresh @1
+  global <- get @()
+  put @() $ global & (locals . at i) ?~ LocalInfo (T.pack $ show i)
   pure $ Local i

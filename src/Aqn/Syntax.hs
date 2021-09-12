@@ -3,8 +3,9 @@ module Aqn.Syntax where
 import           Aqn.Common
 import           Aqn.Presyntax
 import           Aqn.Ref
-import           Data.Foldable (Foldable (foldl', foldr'))
-import           Data.Sequence (Seq)
+import           Control.Exception (Exception)
+import           Data.Foldable     (Foldable (foldl', foldr'))
+import           Data.Sequence     (Seq)
 
 -- | Well-typed core syntax.
 data Term
@@ -38,7 +39,7 @@ data CheckError
   -- ^ body param list does not match that of head; def error.
   | NotSuccessfullyClaimed Decl DefVar
   -- ^ Defining without claiming; def error.
-  deriving (Show)
+  deriving (Show, Exception)
 
 -- | Errors occurred in unification.
 data UnifyError
@@ -48,4 +49,4 @@ data UnifyError
   | NoPatternCondition
   | CantOccursCheck
   | DifferentSpineLength
-  deriving (Show, Eq)
+  deriving (Show, Eq, Exception)

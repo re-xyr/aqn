@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
 module Aqn.Unify where
 
 import           Aqn.Common
@@ -7,37 +8,41 @@ import           Aqn.Pretty
 import           Aqn.Ref
 import           Aqn.Syntax
 import           Aqn.Value
-import           Control.Lens              ((?~), (^.))
-import           Control.Monad             (unless)
-import           Control.Monad.Extra       (fromMaybeM)
-import           Control.Monad.Freer       (Eff, Member)
-import           Control.Monad.Freer.Error (Error, catchError, runError, throwError)
-import           Data.Foldable             (Foldable (toList), foldlM)
-import           Data.Function             ((&))
-import           Data.Map.Strict           (Map)
-import qualified Data.Map.Strict           as Map
-import qualified Data.Set                  as Set
-import           Data.Traversable          (for)
-import           Data.Tsil                 (List (Empty, (:>)))
-import qualified Data.Tsil                 as Tsil
-import qualified Debug.Trace               as Debug
+import           Availability        (Effs)
+import           Availability.Error  (Catcher, Thrower, catchError, makeEffViaMonadCatch, makeEffViaMonadThrow,
+                                      runError, throwError)
+import           Control.Lens        ((?~), (^.))
+import           Control.Monad       (unless)
+import           Control.Monad.Extra (fromMaybeM)
+import           Data.Foldable       (Foldable (toList), foldlM)
+import           Data.Function       ((&))
+import           Data.Map.Strict     (Map)
+import qualified Data.Map.Strict     as Map
+import qualified Data.Set            as Set
+import           Data.Traversable    (for)
+import           Data.Tsil           (List (Empty, (:>)))
+import qualified Data.Tsil           as Tsil
+import qualified Debug.Trace         as Debug
 
-type UnifyM m = (Impure m, Writing 'Locals, Writing 'Metas, Reading 'Funs)
-type UnifyE m = Member (Error UnifyError) m
+type UnifyM = (Impure, Writing 'Locals, Writing 'Metas, Reading 'Funs)
+type UnifyE = Effs '[Thrower UnifyError, Catcher UnifyError]
+
+makeEffViaMonadThrow [t| UnifyError |] [t| TC |]
+makeEffViaMonadCatch [t| UnifyError |] [t| TC |]
 
 -- | Unify two semantic values, solving metavariables if possible. This is untyped syntactic unification.
-unify :: UnifyM m => Val -> Val -> Eff m (Maybe UnifyError)
+unify :: UnifyM => Val -> Val -> TCM (Maybe UnifyError)
 unify l r =
   either (\(x :: UnifyError) -> Just x) (\() -> Nothing) <$> runError (unify' l r)
 {-# INLINE unify #-}
 
-unify' :: (UnifyM m, UnifyE m) => Val -> Val -> Eff m ()
+unify' :: (UnifyM, UnifyE) => Val -> Val -> TCM ()
 unify' l r = unifyShallow l r `catchError` \(_ :: UnifyError) -> do
   (x, y) <- lift (force l, force r)
   unifyShallow x y `catchError` \(_ :: UnifyError) -> unifyDeep x y
 {-# INLINE unify' #-}
 
-unifyShallow :: (UnifyM m, UnifyE m) => Val -> Val -> Eff m ()
+unifyShallow :: (UnifyM, UnifyE) => Val -> Val -> TCM ()
 unifyShallow l r = do
   -- ql <- quoteE l
   -- qr <- quoteE r
@@ -56,7 +61,7 @@ unifyShallow l r = do
     _ -> throwError CantUnifyApprox
 {-# INLINE unifyShallow #-}
 
-unifyDeep :: (UnifyM m, UnifyE m) => Val -> Val -> Eff m ()
+unifyDeep :: (UnifyM, UnifyE) => Val -> Val -> TCM ()
 unifyDeep l r = do
   -- ql <- quoteE l
   -- qr <- quoteE r
@@ -85,7 +90,7 @@ unifyDeep l r = do
 
     _ -> throwError DontKnowHowToUnify
 
-solveMeta :: (UnifyM m, UnifyE m) => MetaVar -> List Elim -> Val -> Eff m ()
+solveMeta :: (UnifyM, UnifyE) => MetaVar -> List Elim -> Val -> TCM ()
 solveMeta ref els sln = do
   meta <- readMeta ref
   args <- ensure NoPatternCondition $ allApps els
@@ -117,9 +122,9 @@ solveMeta ref els sln = do
       | x `elem` set = Nothing
       | otherwise = allDistinct (Set.insert x set) xs
 
-type SolveM m = (Impure m, Writing 'Locals, Reading 'Metas, Reading 'Funs)
+type SolveM m = (Impure, Writing 'Locals, Reading 'Metas, Reading 'Funs)
 
-wellScoped :: (SolveM m, UnifyE m) => MetaVar -> Map Local Local -> Val -> Eff m Term
+wellScoped :: (SolveM m, UnifyE) => MetaVar -> Map Local Local -> Val -> TCM Term
 wellScoped self refs vl' = do
   vl <- lift $ force vl'
   case vl of
@@ -143,25 +148,25 @@ wellScoped self refs vl' = do
       foldlM (wellScopedElim self refs) hd' els'
     VU -> pure TU
 
-wellScopedElim :: (SolveM m, UnifyE m) => MetaVar -> Map Local Local -> Term -> Elim -> Eff m Term
+wellScopedElim :: (SolveM m, UnifyE) => MetaVar -> Map Local Local -> Term -> Elim -> TCM Term
 wellScopedElim self refs tm el = case el of
   EApp li val -> TApp li tm <$> wellScoped self refs val
 {-# INLINE wellScopedElim #-}
 
-unifyMany :: (UnifyM m, UnifyE m) => (a -> a -> Eff m ()) -> List a -> List a -> Eff m ()
+unifyMany :: (UnifyM, UnifyE) => (a -> a -> TCM ()) -> List a -> List a -> TCM ()
 unifyMany _ Tsil.Empty Tsil.Empty = pure ()
 unifyMany f (xs :> x) (ys :> y) = do
   unifyMany f xs ys
   f x y
 unifyMany _ _ _ = throwError DifferentSpineLength
 
-unifyArg :: (UnifyM m, UnifyE m) => Arg Val -> Arg Val -> Eff m ()
+unifyArg :: (UnifyM, UnifyE) => Arg Val -> Arg Val -> TCM ()
 unifyArg (licit ::: arg) (licit' ::: arg') = do
   unless (licit == licit') $ throwError CantUnifyLicit
   unify' arg arg'
 {-# INLINE unifyArg #-}
 
-unifyElim :: (UnifyM m, UnifyE m) => Elim -> Elim -> Eff m ()
+unifyElim :: (UnifyM, UnifyE) => Elim -> Elim -> TCM ()
 unifyElim l r = case (l, r) of
   (EApp licit arg, EApp licit' arg') ->
     unifyArg (licit ::: arg) (licit' ::: arg')

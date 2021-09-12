@@ -8,20 +8,20 @@ import           Aqn.Presyntax
 import           Aqn.Ref
 import           Aqn.Syntax
 import           Aqn.Value
-import           Control.Lens              (_Just, (?~), (^.), (^?!))
-import           Control.Monad.Extra       (fromMaybeM)
-import           Control.Monad.Freer       (Eff, Member)
-import           Control.Monad.Freer.Error (Error, catchError, throwError)
-import           Data.Function             ((&))
-import           Data.Functor              ((<&>))
-import           Data.Sequence             (Seq ((:<|)), (<|))
-import qualified Data.Sequence             as Seq
-import qualified Data.Tsil                 as Tsil
+import           Availability        (Effs)
+import           Availability.Error  (Catcher, Thrower, catchError, throwError)
+import           Control.Lens        (_Just, (?~), (^.), (^?!))
+import           Control.Monad.Extra (fromMaybeM)
+import           Data.Function       ((&))
+import           Data.Functor        ((<&>))
+import           Data.Sequence       (Seq ((:<|)), (<|))
+import qualified Data.Sequence       as Seq
+import qualified Data.Tsil           as Tsil
 
-type TopM m = (Impure m, Writing 'Funs, Writing 'Metas, Writing 'Locals, Member (Error CheckError) m)
+type TopM = (Impure, Writing 'Funs, Writing 'Metas, Writing 'Locals, Effs '[Thrower CheckError, Catcher CheckError])
 
 -- | Check a top-level declaration and put it into global environment.
-checkTop :: TopM m => Decl -> Eff m ()
+checkTop :: TopM => Decl -> TCM ()
 checkTop m = case m of
   DFunHead fv params ret -> do
     (paramsT', retT) <- checkParams topCtx params ret
@@ -36,7 +36,7 @@ checkTop m = case m of
     bodyV <- lift $ evalFunBody [] params bodyT
     updateFun fv \x -> x & funCore ?~ (fun & funBody ?~ (bodyT ::: bodyV))
   where
-    teleToCtx :: TopM m => Ctx -> Seq (Par Term) -> Tele -> Seq Bind -> Eff m (Ctx, Val)
+    teleToCtx :: Ctx -> Seq (Par Term) -> Tele -> Seq Bind -> TCM (Ctx, Val)
     teleToCtx ctx _ (Nil ret) [] = pure (ctx, ret)
     teleToCtx ctx pars (Cons l _ dom cod) ((Tp l' _ r) :<| xs)
       | l /= l' = throwError $ IncorrectParamList m pars
@@ -47,7 +47,7 @@ fakeFunHead :: FunVar -> Seq Bind -> Decl
 fakeFunHead fv pars = DFunHead fv (fmap (::: XHole) pars) XHole
 {-# INLINE fakeFunHead #-}
 
-checkParams :: TopM m => Ctx -> Seq (Par Expr) -> Expr -> Eff m (Seq (Par Term), Term)
+checkParams :: TopM => Ctx -> Seq (Par Expr) -> Expr -> TCM (Seq (Par Term), Term)
 checkParams ctx Seq.Empty ret = do
   retT <- check ctx ret VU
   pure ([], retT)

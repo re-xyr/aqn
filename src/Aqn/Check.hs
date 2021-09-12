@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
 module Aqn.Check where
 
 import           Aqn.Common
@@ -6,19 +7,22 @@ import           Aqn.Global
 import           Aqn.Presyntax
 import           Aqn.Ref
 import           Aqn.Syntax
-import           Aqn.Unify                 (unify)
+import           Aqn.Unify           (unify)
 import           Aqn.Value
-import           Control.Lens              (makeLenses, (%~), (^.))
-import           Control.Monad.Extra       (fromMaybeM)
-import           Control.Monad.Freer       (Eff, Member)
-import           Control.Monad.Freer.Error (Error, throwError)
-import           Control.Monad.Freer.Fresh (fresh)
-import           Data.Function             ((&))
-import           Data.Functor              ((<&>))
-import           Data.Maybe                (fromJust, fromMaybe)
-import           Data.Traversable          (for)
-import           Data.Tsil                 (List ((:>)))
-import qualified Data.Tsil                 as Tsil
+import           Availability        (Eff)
+import           Availability.Error  (Thrower, makeEffViaMonadCatch, makeEffViaMonadThrow, throwError)
+import           Availability.Fresh  (fresh)
+import           Control.Lens        (makeLenses, (%~), (^.))
+import           Control.Monad.Extra (fromMaybeM)
+import           Data.Function       ((&))
+import           Data.Functor        ((<&>))
+import           Data.Maybe          (fromJust, fromMaybe)
+import           Data.Traversable    (for)
+import           Data.Tsil           (List ((:>)))
+import qualified Data.Tsil           as Tsil
+
+makeEffViaMonadThrow [t| CheckError |] [t| TC |]
+makeEffViaMonadCatch [t| CheckError |] [t| TC |]
 
 -- | Typechecking context, including current bound variables and defined variables.
 data Ctx = Ctx
@@ -48,10 +52,10 @@ eval' :: EvalM => Ctx -> Term -> Val
 eval' ctx = eval (ctx ^. ctxEnv)
 {-# INLINE eval' #-}
 
-type CheckM m = (Impure m, Member (Error CheckError) m, Writing 'Locals, Writing 'Metas, Reading 'Funs)
+type CheckM = (Impure, Eff (Thrower CheckError), Writing 'Locals, Writing 'Metas, Reading 'Funs)
 
 -- | Check a surface expression against a type, producing a core term.
-check :: CheckM m => Ctx -> Expr -> Val -> Eff m Term
+check :: CheckM => Ctx -> Expr -> Val -> TCM Term
 check ctx ex ty' = do
   ty <- lift $ force ty'
   case (ex, ty) of
@@ -78,7 +82,7 @@ check ctx ex ty' = do
           throwError err
 
 -- | Infer the type of an expression.
-infer :: CheckM m => Ctx -> Expr -> Eff m (Term, Val)
+infer :: CheckM => Ctx -> Expr -> TCM (Term, Val)
 infer ctx ex = case ex of
   XTy x ty -> do
     tyT <- check ctx ty VU
@@ -133,7 +137,7 @@ infer ctx ex = case ex of
     tm <- freshMeta ctx ty
     pure (tm, ty)
 
-freshDomCod :: CheckM m => Ctx -> Name -> Eff m (Val, Val -> Val)
+freshDomCod :: CheckM => Ctx -> Name -> TCM (Val, Val -> Val)
 freshDomCod ctx n = do
   domMeta <- freshMeta ctx VU
   dom <- lift (eval' ctx domMeta)
@@ -142,15 +146,15 @@ freshDomCod ctx n = do
   clos <- lift $ closure [] tyRef codMeta
   pure (dom, clos)
 
-freshMeta :: (Impure m, Writing 'Metas) => Ctx -> Val -> Eff m Term
+freshMeta :: (Impure, Writing 'Metas) => Ctx -> Val -> TCM Term
 freshMeta ctx _ty = do
-  metavar <- MetaVar <$> fresh
+  metavar <- MetaVar <$> fresh @1
   writeMeta metavar (Meta (MetaCore Nothing))
   pure $ TMeta metavar `tApplyMany` fmap (\(r, _) -> Implicit ::: TLoc r) (ctx ^. ctxBoundTele)
 
 -- | Insert implicit arguments by specification of 'NamedLicit'
 -- (no insert, insert until until a name, insert until explicit).
-insert :: (Impure m, Writing 'Metas, Reading 'Funs, Reading 'Locals) => NamedLicit -> Ctx -> Term -> Val -> Eff m (Maybe (Term, Val))
+insert :: (Impure, Writing 'Metas, Reading 'Funs, Reading 'Locals) => NamedLicit -> Ctx -> Term -> Val -> TCM (Maybe (Term, Val))
 insert licit ctx tm ty' = do
   ty <- lift $ force ty'
   case ty of
@@ -164,12 +168,12 @@ insert licit ctx tm ty' = do
       | otherwise -> pure Nothing
     _ -> pure $ Just (tm, ty)
 
--- infer :: CheckM m => Ctx -> Expr -> Eff m (Val, Term)
+-- infer :: CheckM => Ctx -> Expr -> TCM (Val, Term)
 -- infer ctx ex = do
 --   (ty, tm) <- infer' ctx ex
 --   lift' $ (ty, ) <$> finalizeCall tm
 
--- finalizeCall :: (Pure, Member Fresh m) => Term -> Eff m Term
+-- finalizeCall :: (Pure, Member Fresh m) => Term -> TCM Term
 -- finalizeCall tm = case tm of
 --   TFun r xs | la < lp -> do
 --     args <- mapM (\(l, _, _) -> (l, ) <$> freshLocal) (Seq.take (lp - la) pars)

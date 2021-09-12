@@ -5,16 +5,15 @@ import           Aqn.Global
 import           Aqn.Ref
 import           Aqn.Syntax
 import           Aqn.Value
-import           Control.Lens        (_2, _Just, previews, (^?))
-import           Control.Monad.Freer (Eff)
-import           Data.Foldable       (Foldable (toList))
-import           Data.Function       ((&))
-import           Data.Maybe          (fromMaybe)
-import           Data.Reflection     (Given (given), give)
-import           Data.Sequence       (Seq ((:<|)))
-import qualified Data.Sequence       as Seq
-import           Data.Tsil           (List ((:>)))
-import qualified Data.Tsil           as Tsil
+import           Control.Lens    (_2, _Just, previews, (^?))
+import           Data.Foldable   (Foldable (toList))
+import           Data.Function   ((&))
+import           Data.Maybe      (fromMaybe)
+import           Data.Reflection (Given (given), give)
+import           Data.Sequence   (Seq ((:<|)))
+import qualified Data.Sequence   as Seq
+import           Data.Tsil       (List ((:>)))
+import qualified Data.Tsil       as Tsil
 
 -- | The evaluation environment that corresponds 'Local' variables to 'Val' values.
 type Env = List (Local, Val)
@@ -49,19 +48,19 @@ data Unfold
   | Enfold
   deriving (Show, Eq)
 
-type QuoteM m = (Impure m, Writing 'Locals, Reading 'Metas, Reading 'Funs)
+type QuoteM = (Impure, Writing 'Locals, Reading 'Metas, Reading 'Funs)
 
 -- | Quote a 'Val' back into a syntactic 'Term' in beta-normal form.
-quoteE :: QuoteM m => Val -> Eff m Term
+quoteE :: QuoteM => Val -> TCM Term
 quoteE v = give Enfold $ quote v
 {-# INLINE quoteE #-}
 
 -- | Quote a 'Val' back into a syntactic 'Term' in beta-delta-normal form.
-quoteU :: QuoteM m => Val -> Eff m Term
+quoteU :: QuoteM => Val -> TCM Term
 quoteU v = give Unfold $ quote v
 {-# INLINE quoteU #-}
 
-quote :: (QuoteM m, Given Unfold) => Val -> Eff m Term
+quote :: (QuoteM, Given Unfold) => Val -> TCM Term
 quote val = case val of
   VPi licit n dom cod -> do
     fresh <- freshLocal n
@@ -77,20 +76,20 @@ quote val = case val of
     | otherwise -> quoteHd hd >>= flip quoteElims els
   VU -> pure TU
 
-quoteHd :: (QuoteM m, Given Unfold) => Head -> Eff m Term
+quoteHd :: (QuoteM, Given Unfold) => Head -> TCM Term
 quoteHd hd = case hd of
   HLoc ref      -> pure $ TLoc ref
   HMeta ref     -> pure $ TMeta ref
   HFun ref args -> TFun ref . Seq.fromList . toList <$> traverse (traverse quote) args
 {-# INLINE quoteHd #-}
 
-quoteElims :: (QuoteM m, Given Unfold) => Term -> List Elim -> Eff m Term
+quoteElims :: (QuoteM, Given Unfold) => Term -> List Elim -> TCM Term
 quoteElims t Tsil.Empty = pure t
 quoteElims t (xs :> x) = do
   t' <- quoteElim t x
   quoteElims t' xs
 
-quoteElim :: (QuoteM m, Given Unfold) => Term -> Elim -> Eff m Term
+quoteElim :: (QuoteM, Given Unfold) => Term -> Elim -> TCM Term
 quoteElim tm elim = case elim of
   EApp l val -> TApp l tm <$> quote val
 {-# INLINE quoteElim #-}
